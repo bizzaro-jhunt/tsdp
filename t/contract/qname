@@ -1,0 +1,105 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+
+my $rc = 0;
+sub ok($) {
+	print "ok ", $_[0], "\n";
+}
+sub notok($) {
+	print "not ok ", $_[0], "\n";
+	$rc = 1;
+}
+
+# some singleton base cases
+chomp(my $out = qx(./t/contract/r/qname-base 2>&1));
+my $exit = $? >> 8;
+if ($exit == 0) {
+	ok "base qname tests hold";
+} else {
+	notok "base qname tests failed";
+	print "$out\n";
+	exit 1;
+}
+
+while (<DATA>) {
+	chomp;
+	s/\s*#\s*(.*)//;
+	my $comment = $1 ? "$1 - " : "";
+	my ($test) = m/([a-z]+)\s/ or next;
+	$comment = "[$test] $comment";
+
+	if ($test eq 'string') {
+		my ($in, $want) = m/$test\s+(.*?)\s+>>\s+(.*)/;
+		$in =~ s|\\|\\\\|g; # avoid premature unescapes.
+		chomp(my $out = qx(echo '$in' | ./t/contract/r/qname-${test} 2>&1));
+		if ($out ne $want) {
+			notok "${comment}[$in] did not yield [$want] (was [$out])";
+		} else {
+			ok "${comment}[$in] yields [$want]";
+		}
+
+	} elsif ($test =~ m/^(equiv|match)$/) {
+		my ($a, $rel, $b) = m/$test\s+(.*?)\s+([~!])\s+(.*)/;
+		chomp(my $err = qx(./t/contract/r/qname-${test} '$a' '$rel' '$b' </dev/null 2>&1));
+		my $exit = $? >> 8;
+		if ($exit == 0) {
+			ok "${comment}$a $rel $b holds";
+		} elsif ($exit == 1) {
+			notok "${comment}$a $rel $b does not hold";
+		} else {
+			notok "${comment}$a $rel $b does not hold (rc=$exit; err=$err)";
+		}
+
+	} else {
+		notok "invalid test: ${test}"
+	}
+}
+exit $rc;
+
+__DATA__
+string a=b       >> a=b        # base case
+string abc=d     >> abc=d      # multi-character key
+string a=def     >> a=def      # multi-character value
+string abc=def   >> abc=def    # multi-character key and value
+string a=b,c=d   >> a=b,c=d    # compound case (pre-ordered)
+string c=d,a=b   >> a=b,c=d    # compound case re-ordered
+string *         >> *          # single wildcard
+string a=*       >> a=*        # partial match
+string a=*,c=d   >> a=*,c=d    # interior partial match
+string a=b,*     >> a=b,*      # trailing wildcard
+string a = b     >> a=b        # key/value delimiter whitespace
+string a   =  b  >> a=b        # repeated whitespace
+string a=b , c=d >> a=b,c=d    # pair delimiter whitespace
+string a=b c,d=e >> a=b c,d=e  # whitespace preservation
+string a=\b      >> a=b        # non-escape pass-through (values)
+string \a=\b     >> a=b        # non-escape pass-through (keys)
+string a=b\ c    >> a=b c      # whitespace escaped
+
+equiv <nil>   ! <nil>          # nil/nil inequality
+equiv <nil>   ! a=b            # nil/!nil inequality
+equiv a=b     ! <nil>          # !nil/nil inequality
+equiv a=b     ~ a=b            # base case
+equiv a=b,c=d ~ a=b,c=d        # multiple keys
+equiv a=b     ! a=c            # negative base case (values)
+equiv a=b     ! c=b            # negative base case (keys)
+equiv a=b     ! a=             # missing value
+equiv a=b,c=d ! a=b            # arity mismatch
+equiv a=b,*   ! a=b            # wildcard mismatch
+equiv a=b,*   ~ a=b,*          # wildcard equality
+
+match <nil>   ! <nil>          # nil/nil mismatch
+match <nil>   ! a=b            # nil/!nil mismatch
+match a=b     ! <nil>          # !nil/nil mismatch
+match a=b     ~ a=b            # literal match
+match a=b     ~ a=*            # partial match
+match a=b,c=d ~ a=*,c=d        # interior partial match
+match a=b,c=d ~ a=b,*          # wildcard match
+match a=b,c=d ~ a=*,*          # wildcard + partial match
+match a=b,c=d ! a=*            # partial match scope
+match a=b     ! a=c            # value mismatch
+match a=b     ! a=             # missing value
+match a=b     ! c=d            # key mismatch
+match a=b     ! c=d,*          # pattern constraint
+match a=b     ~ a=b,*          # superfluous wildcard
+match a=b,c=d ! a=b            # arity mismatch

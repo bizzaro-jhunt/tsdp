@@ -1,0 +1,74 @@
+digraph qname {
+	// TSDP Qualified Names Parser Transition Diagram
+	//
+	// This document describes the finite state machine
+	// that runs the TSDP Qualified Name parser code,
+	// tsdp_qname_parse(const char*)
+	//
+	// author:  James Hunt <james@niftylogic.com>
+	// created: 2016-07-10
+	//
+
+	rankdir=LR
+	{ node [shape=doublecircle] S0 DONE }
+	{ node [shape=circle] K1 K2 V1 V2 M }
+
+	// clean things up a bit
+	{ edge [style=invis,weight=20]
+	  S0 -> K1 -> K2 -> V1 -> V2 -> DONE }
+
+	S0 -> K1
+
+	K1 -> M    [label="'*'"]
+	K1 -> K2   [label="K(c)"]
+
+	K2 -> K2   [label="K(c)"]
+	K2 -> V1   [label="'='"]
+	K2 -> K1   [label="','"]
+	K2 -> DONE [label="eof"]
+
+	V1 -> M    [label="'*'"]
+	V1 -> V2   [label="V(c)"]
+	V1 -> K1   [label="','"]
+	V1 -> DONE [label="eof"]
+
+	V2 -> V2   [label="V(c)"]
+	V2 -> K1   [label="','"]
+	V2 -> DONE [label="eof"]
+
+	M  -> DONE [label="eof"]
+	M  -> K1   [label="','"]
+
+	/*
+	  A few notes:
+
+	  S0 is the start state, the initial state of the
+	     parser finite state machine.
+
+	  DONE is the only accepting (final) state; if we
+	     get here, it means we have matched a valid
+	     qualified name string representation
+	     (although we may have issues semantically)
+
+	  K1/K2 exist to enforce the minimum key length of
+	     one, and that keys aren't globbed.
+
+	  V1/V2 exist to distinguish leading globs, which
+	     are only permitted in the first position, and
+	     must be followed by a delimiter (EOF or ,)`
+
+	  M is the "match" state, which indicates a valid
+	     glob / wildcard, for pattern semantics.
+
+	  The K(c) and V(c) functions classify the input
+	     token `c` according to whether or not it can
+	     be used for key(K) or value (V) tokens.
+	     These functions are responsible for performing
+	     backslash-escape demangling.
+
+	  If no transition is found based on the input
+	     token (after backslash-escape de-mangling),
+	     the state machine must error; an invalid
+	     qualified name has been detected.
+	*/
+}

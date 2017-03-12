@@ -1,0 +1,22 @@
+#!/bin/bash
+set -eu
+NAME=msg
+
+if [[ ! -x t/fuzz/r/${NAME} ]]; then
+	echo >&2 "Fuzz Test runner 't/fuzz/r/${NAME}' not found..."
+	echo >&2 "Do you need to run \`make fuzz-tests\`?"
+	exit 1
+fi
+
+if [[ -d t/fuzz/findings ]]; then
+	echo >&2 "t/fuzz/findings already exist!"
+	read -p "remove them? [yes/NO] " NUKE_IT
+	if [[ $NUKE_IT != "yes" ]]; then
+		echo >&2 "never mind..."
+		exit 2
+	fi
+fi
+
+rm -rf t/fuzz/findings/
+set -x
+afl-fuzz -i t/fuzz/cases/${NAME} -o t/fuzz/findings t/fuzz/r/${NAME}

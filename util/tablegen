@@ -1,0 +1,35 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+
+sub char {
+	if (substr($_[0], 0, 1) eq 'x') {
+		return hex(substr($_[0], 1));
+	}
+	return ord($_[0]);
+}
+
+while (<>) {
+	s/(^\s+|\s$)//g;
+	my @chars = map { 0 } 0..255;
+	my ($tbl, @members) = split /[:,]\s*/;
+	for my $m (@members) {
+		if ($m =~ m/(.+?)\s*-\s*(.+)/) {
+			$chars[$_] = 1 for char($1)..char($2);
+		} else {
+			$chars[char($m)] = 1;
+		}
+	}
+
+	print "const unsigned int TBL_${tbl}[] = {\n";
+	for (my $i = 0; $i <= 0xf0; $i += 0x10) {
+		print "\t";
+		for (my $j = 0; $j <= 0x0f; $j++) {
+			print $chars[$i|$j].",";
+			print " " unless $j == 0x0f;
+		}
+		print "\n";
+	}
+	print "};\n\n";
+}

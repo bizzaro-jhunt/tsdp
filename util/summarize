@@ -1,0 +1,5 @@
+#!/bin/bash
+
+echo -n "LOC in src/: "
+find src -name '*.[ch]' | xargs wc -l | tail -n1 | awk '{print $1}'
+echo
