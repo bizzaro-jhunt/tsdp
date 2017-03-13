@@ -1,0 +1,20 @@
+#!/bin/bash
+
+export LD_PRELOAD="$HOME/code/gremlin/gremlin.so"
+export GREMLINS='!'
+while true; do
+	./t/mem/r/qname a=b,c=d
+	rc=$?
+	if [[ $rc -eq 0 ]]; then
+		echo "succeeded at GREMLINS='$GREMLINS'"
+		echo "OK"
+		exit 0
+	fi
+	if [[ $rc -eq 77 ]]; then
+		echo "handled GREMLINS='$GREMLINS' well (exited 77, didn't segfault)"
+		export GREMLINS=".$GREMLINS"
+	else
+		echo "failed at GREMLINS='$GREMLINS'; exited $rc (or maybe segfaulted)"
+		exit 1
+	fi
+done

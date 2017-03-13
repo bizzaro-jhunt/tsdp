@@ -95,6 +95,10 @@ detect memory leaks. The former can lead to obscure crashes
 and the latter can impact the longevity of a process that uses
 TSDP facilities.
 
+Memory tests also use [gremlin][gremlin] to ensure that we are
+properly handling errors from the memory allocation subsystem
+(malloc and friends).
+
 Memory tests live under `t/mem`.  These tests can execute slowly,
 due to the necessary instrumentation for detecting memory errors.
 As such, these tests are not included in the standard `make check`

@@ -1,2 +1,8 @@
 #!/bin/sh
-exec xcrun llvm-cov gcov "$@"
+case `uname -a` in
+*inux*)  exec gcov "$@" ;;
+*arwin*) exec xcrun llvm-cov gcov "$@" ;;
+esac
+echo >&2 "unrecognized platform"
+echo >&2 "uname: `uname -a`"
+exit 44

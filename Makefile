@@ -74,6 +74,22 @@ check-contract: $(CONTRACT_TEST_BINS)
 	for test in $(CONTRACT_TEST_SCRIPTS); do echo $$test; $$test || exit $$?; echo; done
 
 
+# scripts that perform Memory Testing.
+MEM_TEST_SCRIPTS := t/mem/malloc
+
+# binaries that the Memory Tests run.
+MEM_TEST_BINS := t/mem/r/qname
+CLEAN_FILES += $(MEM_TEST_BINS)
+CLEAN_FILES += $(MEM_TEST_BINS:=.o)
+
+mem-tests: $(MEM_TEST_BINS)
+t/mem/r/qname: t/mem/r/qname.o $(QNAME_OBJ)
+	$(CC) $(LDFLAGS) $+ -o $@
+
+check-mem: $(MEM_TEST_BINS)
+	for test in $(MEM_TEST_SCRIPTS); do echo $$test; $$test || exit $$?; echo; done
+
+
 # binaries that the Fuzz Tests run.
 FUZZ_TEST_BINS := t/fuzz/r/qname \
                   t/fuzz/r/msg
@@ -111,7 +127,8 @@ all: test libs
 
 check: check-contract
 test: check
-cover: check
+cover: check coverage
+coverage:
 	lcov --directory . \
 	     --base-directory . \
 	     --gcov-tool ./util/llvm-gcov \
