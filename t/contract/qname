@@ -53,20 +53,22 @@ while (<DATA>) {
 
 	} elsif ($test eq 'max') {
 		my ($len, $ok) = m/$test\s+(\d+)\s+(ok|fail)/;
-		my $s = join(',', map { "a$_=$_" } 1..$len);
-		chomp(my $err = qx(./t/contract/r/qname-${test} '$s' </dev/null 2>&1));
-		my $exit = $? >> 8;
-		if ($exit == 0) {
-			if ($ok eq 'ok') {
-				notok "${comment}$len pairs was too long (and should be fine)"
+		for my $slug (qw(a$_=$_ k$_ w$_=*)) {
+			my $s = join(',', map { eval "\"$slug\"" } 1..$len);
+			chomp(my $err = qx(./t/contract/r/qname-${test} '$s' </dev/null 2>&1));
+			my $exit = $? >> 8;
+			if ($exit == 0) {
+				if ($ok eq 'ok') {
+					notok "${comment}$len ($slug) pairs was too long (and should be fine)"
+				} else {
+					ok "${comment}$len ($slug) pairs is too long (as it should be)"
+				}
 			} else {
-				ok "${comment}$len pairs is too long (as it should be)"
-			}
-		} else {
-			if ($ok eq 'ok') {
-				ok "${comment}$len pairs is not too long (that's correct)"
-			} else {
-				notok "${comment}$len pairs is not too long (rc=$exit; err=$err)";
+				if ($ok eq 'ok') {
+					ok "${comment}$len ($slug) pairs is not too long (that's correct)"
+				} else {
+					notok "${comment}$len ($slug) pairs is not too long (rc=$exit; err=$err)";
+				}
 			}
 		}
 
