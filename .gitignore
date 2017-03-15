@@ -8,6 +8,7 @@ coverage
 /t/contract/r/qname-base
 /t/contract/r/qname-equiv
 /t/contract/r/qname-match
+/t/contract/r/qname-max
 /t/contract/r/qname-string
 /t/contract/r/msg-in
 
