@@ -11,9 +11,12 @@ int main(int argc, char **argv)
 		struct tsdp_msg *m;
 
 		m = tsdp_msg_unpack(buf, n, &left);
-		if (!tsdp_msg_valid(m)) {
-			printf("~~ BOGON DETECTED ~~\n");
+		if (!m) {
+			printf("malformed message\n");
+			return 0;
 		}
+		if (left)               printf("~~ %d octets left ~~\n", left);
+		if (!tsdp_msg_valid(m)) printf("~~ BOGON DETECTED ~~\n");
 		tsdp_msg_fdump(stdout, m);
 		return 0;
 	}

@@ -79,6 +79,7 @@ tsdp_qname_match(struct tsdp_qname *qn, struct tsdp_qname *pattern);
 
 
 #define TSDP_PROTOCOL_V1       1
+#define tsdp_version_ok(v) ((v) == TSDP_PROTOCOL_V1)
 
 
 #define TSDP_OPCODE_HEARTBEAT  0
@@ -87,6 +88,10 @@ tsdp_qname_match(struct tsdp_qname *qn, struct tsdp_qname *pattern);
 #define TSDP_OPCODE_FORGET     3
 #define TSDP_OPCODE_REPLAY     4
 #define TSDP_OPCODE_SUBSCRIBE  5
+#define tsdp_opcode_ok(o) ((o) >= TSDP_OPCODE_HEARTBEAT && (o) <= TSDP_OPCODE_SUBSCRIBE)
+
+
+#define tsdp_flags_ok(o) ((o) < 256 && (o) >= 0)
 
 
 #define TSDP_PAYLOAD_SAMPLE    0x0001
@@ -97,12 +102,14 @@ tsdp_qname_match(struct tsdp_qname *qn, struct tsdp_qname *pattern);
 #define TSDP_PAYLOAD_FACT      0x0020
 // ......................      ......
 #define TSDP_PAYLOAD_RSVP      0xffc0
+#define tsdp_payload_ok(p) (((p) & TSDP_PAYLOAD_RSVP) == 0)
 
 
 struct tsdp_frame {
 	unsigned char  type;       /* type of payload (TSDP_FRAME_*) */
 	unsigned short length;     /* length of raw payload (data[]) */
 	union {
+		uint16_t  uint16;      /* TSDP_FRAME_UINT/16             */
 		uint32_t  uint32;      /* TSDP_FRAME_UINT/32             */
 		uint64_t  uint64;      /* TSDP_FRAME_UINT/64             */
 		float     float32;     /* TSDP_FRAME_FLOAT/32            */
@@ -134,6 +141,70 @@ struct tsdp_msg {
 // ......................      .
 #define TSDP_FRAME_TSTAMP      6
 #define TSDP_FRAME_NIL         7
+
+/**
+  Allocates and returns a new, empty tsdp_msg structure with
+  the version, opcode, flags and payload set.  Rudimentary
+  validation will be made against passed arguments, mostly
+  for boundary checking.
+
+  Returns a pointer to a freshly allocated message structure
+  on success, or NULL on failure, at which point `errno` will
+  be set to one of the following:
+
+    EINVAL   One of the arguments was out of range or otherwise
+             incorrect (i.e., an unsupported version, unknown
+             opcode, bad payload, etc.)
+
+    any error that `calloc(3)` can raise.
+
+  The returned message structure must be freed by the caller,
+  via `tsdp_msg_free()`, when no longer needed.
+ */
+struct tsdp_msg *
+tsdp_msg_new(int version, int opcode, int flags, int payload);
+
+/**
+  Free memory resources allocated to the given tsdp_msg
+  structure.  After this call, the pointer passed may not
+  be used for anything, and should be nullified, if possible.
+
+  It is not an error to pass a NULL pointer.
+ */
+void
+tsdp_msg_free(struct tsdp_msg *m);
+
+/**
+  Extend a tsdp_msg structure by appending an additional
+  frame to it, of the specified type, length and data payload.
+
+  Some minimal validation will be performed, to ensure that the
+  frame itself is well-formed.  Whether that frame makes sense
+  where it gets inserted, given the opcode / flags / etc. of the
+  containing message is unknown (and unchecked).
+
+  Returns 0 on success; -1 on error and sets `errno`.
+ */
+int
+tsdp_msg_extend(struct tsdp_msg *m, int type, const void *v, size_t len);
+
+/**
+  Pack the tsdp_msg structure, in TSDP wire protocol format,
+  into the first `len` bytes of `buf`.  If `buf` is not big
+  enough to hold all of the binary representation, only the first
+  `len` octets will be copied into `buf`.
+
+  The number of octets required to represent the message structure
+  will be returned.  If this is larger than `len`, truncation has
+  occurred.
+
+  It is valid to pass `len` as 0 and `buf` as NULL, to determine
+  how big `buf` needs to be (e.g., for dynamic allocation).
+
+  Returns 0 on failure.
+ */
+ssize_t
+tsdp_msg_pack(void *buf, size_t len, struct tsdp_msg *m);
 
 struct tsdp_msg *
 tsdp_msg_unpack(const void *buf, size_t n, size_t *left);

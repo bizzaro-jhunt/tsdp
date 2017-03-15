@@ -44,6 +44,13 @@ sub msg_in($$$) {
 	}
 }
 
+qx(./t/contract/r/msg-acc 2>&1);
+if ($? == 0) {
+	ok "msg struct accessors are good";
+} else {
+	notok "msg-acc test program failed";
+}
+
 msg_in "[HEARTBEAT] message (0)",
        #------------------------------------------------
        "1 0 00 0000".                 # header
@@ -378,5 +385,43 @@ msg_in "[SUBSCRIBE] message (5)",
        "frames:  1\n".
        "    0) STRING/8\n".
        "";
+
+msg_in "[INVALID] short buffer",
+       #------------------------------------------------
+       "00",
+       #------------------------------------------------
+       "malformed message\n".
+       "";
+
+my $got = qx(./t/contract/r/msg-out 2>&1);
+my $exit = $?;
+my $want = <<EOF;
+---
+ 10 55 00 03 70 00 a0 04 74 65 73 74
+
+---
+ 15 14 00 00 00 02 12 34 00 04 de ad be ef 00 08
+ de ca fb ad ab ad 1d ea 10 04 3f 9e 04 19 10 08
+ 00 00 00 00 48 df 0a a4 20 00 20 04 68 69 79 61
+ 20 0c 68 65 6c 6c 6f 2c 20 77 6f 72 6c 64 60 08
+ 11 22 33 44 55 66 77 88 70 00 f0 00
+
+---
+ 13 42 00 18 f0 00
+
+EOF
+if ($exit == 0) {
+	if ($got ne $want) {
+		my $fh;
+		notok "message wire formatting failed";
+		open $fh, ">", "$WORKSPACE/got";  print $fh "GOT\n$got";   close $fh;
+		open $fh, ">", "$WORKSPACE/want"; print $fh "WANT\n$want"; close $fh;
+		print qx(diff -y $WORKSPACE/got $WORKSPACE/want 2>&1);
+	} else {
+		ok "message wire formatting is ok";
+	}
+} else {
+	notok "message wire formatting failed; exited $exit";
+}
 
 exit $rc;

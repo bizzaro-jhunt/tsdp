@@ -55,7 +55,9 @@ CONTRACT_TEST_BINS := t/contract/r/qname-base \
                       t/contract/r/qname-equiv \
                       t/contract/r/qname-match \
                       t/contract/r/qname-max \
-                      t/contract/r/msg-in
+                      t/contract/r/msg-acc \
+                      t/contract/r/msg-in \
+                      t/contract/r/msg-out
 CLEAN_FILES   += $(CONTRACT_TEST_BINS)
 CLEAN_FILES   += $(CONTRACT_TEST_BINS:=.o)
 
@@ -70,7 +72,11 @@ t/contract/r/qname-match: t/contract/r/qname-match.o $(QNAME_COV)
 	$(CC) $(LDFLAGS) --coverage $+ -o $@
 t/contract/r/qname-max: t/contract/r/qname-max.o $(QNAME_COV)
 	$(CC) $(LDFLAGS) --coverage $+ -o $@
+t/contract/r/msg-acc: t/contract/r/msg-acc.o $(MSG_COV)
+	$(CC) $(LDFLAGS) --coverage $+ -o $@
 t/contract/r/msg-in: t/contract/r/msg-in.o $(MSG_COV)
+	$(CC) $(LDFLAGS) --coverage $+ -o $@
+t/contract/r/msg-out: t/contract/r/msg-out.o $(MSG_COV)
 	$(CC) $(LDFLAGS) --coverage $+ -o $@
 
 check-contract: $(CONTRACT_TEST_BINS)

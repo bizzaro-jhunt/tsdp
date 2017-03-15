@@ -10,7 +10,9 @@ coverage
 /t/contract/r/qname-match
 /t/contract/r/qname-max
 /t/contract/r/qname-string
+/t/contract/r/msg-acc
 /t/contract/r/msg-in
+/t/contract/r/msg-out
 
 /t/fuzz/r/qname
 /t/fuzz/r/msg

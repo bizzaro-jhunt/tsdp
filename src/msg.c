@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+#include <errno.h>
 
 #define BYTE(x,n) (((unsigned char*)(x))[(n)])
 #define WORD(x,n) ((BYTE((x),(n)) << 8) | BYTE((x),(n)+1))
@@ -15,6 +16,248 @@
 #define extract_frame_final(f)     ((BYTE((f),0) & 0x80) >> 7)
 #define extract_frame_type(f)      ((BYTE((f),0) & 0x70) >> 4)
 #define extract_frame_length(f)   (((BYTE((f),0) & 0x0f) << 8) | (BYTE((f), 1)))
+
+static inline uint64_t
+h2n16(uint64_t u)
+{
+	int e = 37;
+	if (*(char*)&e == 37) {
+		return ((u & 0xff00) >> 8)
+		     | ((u & 0x00ff) << 8);
+	}
+	return u;
+}
+
+static inline uint64_t
+h2n32(uint64_t u)
+{
+	int e = 37;
+	if (*(char*)&e == 37) {
+		return ((u & 0xff000000) >> 24)
+		     | ((u & 0x00ff0000) >>  8)
+		     | ((u & 0x0000ff00) <<  8)
+		     | ((u & 0x000000ff) << 24);
+	}
+	return u;
+}
+
+static inline uint64_t
+h2n64(uint64_t u)
+{
+	int e = 37;
+	if (*(char*)&e == 37) {
+		return ((u & 0xff00000000000000) >> 56)
+		     | ((u & 0x00ff000000000000) >> 40)
+		     | ((u & 0x0000ff0000000000) >> 24)
+		     | ((u & 0x000000ff00000000) >>  8)
+		     | ((u & 0x00000000ff000000) <<  8)
+		     | ((u & 0x0000000000ff0000) << 24)
+		     | ((u & 0x000000000000ff00) << 40)
+		     | ((u & 0x00000000000000ff) << 56);
+	}
+	return u;
+}
+
+struct tsdp_msg *
+tsdp_msg_new(int version, int opcode, int flags, int payload)
+{
+	struct tsdp_msg *m;
+
+	errno = EINVAL;
+	if (!tsdp_version_ok(version)
+	 || !tsdp_opcode_ok(opcode)
+	 || !tsdp_flags_ok(flags)
+	 || !tsdp_payload_ok(payload)) {
+		return NULL;
+	}
+
+	m = calloc(1, sizeof(struct tsdp_msg));
+	if (!m) {
+		return NULL;
+	}
+
+	m->version = version & 0xf;
+	m->opcode  = opcode  & 0xf;
+	m->flags   = flags   & 0xff;
+	m->payload = payload & ~TSDP_PAYLOAD_RSVP;
+
+	return m;
+}
+
+void
+tsdp_msg_free(struct tsdp_msg *m)
+{
+	struct tsdp_frame *f, *tmp;
+
+	if (!m) return;
+
+	f = m->frames;
+	while (f) {
+		tmp = f->next;
+		free(f);
+		f = tmp;
+	}
+	free(m);
+}
+
+int
+tsdp_msg_extend(struct tsdp_msg *m, int type, const void *v, size_t len)
+{
+	struct tsdp_frame *f;
+
+	f = calloc(1, sizeof(struct tsdp_frame));
+	if (!f) return -1;
+
+	f->type = type;
+	f->length = len;
+
+	errno = EINVAL;
+	switch (type) {
+		case TSDP_FRAME_NIL:
+			if (len != 0) {
+				free(f);
+				return -1;
+			}
+			break;
+
+		case TSDP_FRAME_UINT:
+			if (len == 2) {           /* UINT/16 */
+				f->payload.uint16 = *(uint16_t*)v;
+			} else if (len == 4) {    /* UINT/32 */
+				f->payload.uint32 = *(uint32_t*)v;
+			} else if (len == 8) {    /* UINT/64 */
+				f->payload.uint64 = *(uint64_t*)v;
+			} else {
+				free(f);
+				return -1;
+			}
+			break;
+
+		case TSDP_FRAME_FLOAT:
+			if (len == 4) {           /* FLOAT/32 */
+				f->payload.float32 = *(float*)v;
+			} else if (len == 8) {    /* FLOAT/64 */
+				f->payload.float64 = *(float*)v;
+			} else {
+				free(f);
+				return -1;
+			}
+			break;
+
+		case TSDP_FRAME_TSTAMP:
+			if (len == 8) {           /* TSTAMP/64 */
+				f->payload.tstamp = *(uint64_t*)v;
+			} else {
+				free(f);
+				return -1;
+			}
+			break;
+
+		case TSDP_FRAME_STRING:
+			if (len > 0) {
+				f->payload.string = calloc(len, sizeof(char));
+				if (!f->payload.string) {
+					free(f);
+					return -1;
+				}
+				memcpy(f->payload.string, v, len);
+			}
+			break;
+
+		default:
+			free(f);
+			return -1;
+	}
+
+	m->nframes++;
+	f->next = NULL;
+	if (!m->last) {
+		m->frames = m->last = f;
+
+	} else {
+		m->last->next = f;
+		m->last = f;
+	}
+
+	return 0;
+}
+
+ssize_t
+tsdp_msg_pack(void *buf, size_t len, struct tsdp_msg *m)
+{
+	ssize_t n = 0;
+	struct tsdp_frame *f;
+	uint64_t u;
+#	define PACK(c) if (n<len) ((unsigned char*)buf)[n] = (unsigned char)(c) & 0xff; n++
+#	define PACK2(c) do { PACK(((unsigned char*)(&c))[0]); PACK(((unsigned char*)(&c))[1]); } while (0)
+#	define PACK4(c) do { PACK(((unsigned char*)(&c))[0]); PACK(((unsigned char*)(&c))[1]); \
+	                     PACK(((unsigned char*)(&c))[2]); PACK(((unsigned char*)(&c))[3]); } while (0)
+#	define PACK8(c) do { PACK(((unsigned char*)(&c))[0]); PACK(((unsigned char*)(&c))[1]); \
+	                     PACK(((unsigned char*)(&c))[2]); PACK(((unsigned char*)(&c))[3]); \
+	                     PACK(((unsigned char*)(&c))[4]); PACK(((unsigned char*)(&c))[5]); \
+	                     PACK(((unsigned char*)(&c))[6]); PACK(((unsigned char*)(&c))[7]); } while (0)
+
+	if (!buf) len = 0;
+
+	/* HEADER */
+	PACK((m->version << 4) | (m->opcode & 0x0f));
+	PACK(m->flags);
+	PACK(m->payload >> 8);
+	PACK(m->payload);
+
+	for (f = m->frames; f; f = f->next) {
+		PACK((m->last == f ? 0x80 : 0x00) | ((f->type << 4) & 0x70) | ((f->length >> 8) & 0xf));
+		PACK(f->length);
+		switch (f->type) {
+			case TSDP_FRAME_NIL:
+				break;
+
+			case TSDP_FRAME_UINT:
+				if (f->length == 2) {
+					u = h2n16(f->payload.uint16); PACK2(u);
+				} else if (f->length == 4) {
+					u = h2n32(f->payload.uint32); PACK4(u);
+				} else if (f->length == 8) {
+					u = h2n64(f->payload.uint64); PACK8(u);
+				} else {
+					return 0;
+				}
+				break;
+
+			case TSDP_FRAME_FLOAT:
+				if (f->length == 4) {
+					u = h2n32(*(uint32_t*)(&f->payload.float32)); PACK4(u);
+				} else if (f->length == 8) {
+					u = h2n64(*(uint64_t*)(&f->payload.float64)); PACK8(u);
+				} else {
+					return 0;
+				}
+				break;
+
+			case TSDP_FRAME_TSTAMP:
+				if (f->length == 8) {
+					u = h2n64(f->payload.tstamp); PACK8(u);
+				} else {
+					return 0;
+				}
+				break;
+
+			case TSDP_FRAME_STRING:
+				for (u = 0; u < f->length; u++) {
+					PACK(f->payload.string[u]);
+				}
+				break;
+
+			default:
+				return 0;
+		}
+	}
+#	undef PACK
+#	undef PACK2
+#	undef PACK4
+#	undef PACK8
+	return n;
+}
 
 struct tsdp_msg *
 tsdp_msg_unpack(const void *buf, size_t n, size_t *left)
