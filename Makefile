@@ -51,6 +51,7 @@ CONTRACT_TEST_SCRIPTS := t/contract/qname \
 
 # binaries that the Contract Tests run.
 CONTRACT_TEST_BINS := t/contract/r/qname-base \
+                      t/contract/r/qname-dup \
                       t/contract/r/qname-string \
                       t/contract/r/qname-equiv \
                       t/contract/r/qname-match \
@@ -58,11 +59,13 @@ CONTRACT_TEST_BINS := t/contract/r/qname-base \
                       t/contract/r/msg-acc \
                       t/contract/r/msg-in \
                       t/contract/r/msg-out
-CLEAN_FILES   += $(CONTRACT_TEST_BINS)
-CLEAN_FILES   += $(CONTRACT_TEST_BINS:=.o)
+CLEAN_FILES += $(CONTRACT_TEST_BINS)
+CLEAN_FILES += $(CONTRACT_TEST_BINS:=.o)
 
 contract-tests: $(CONTRACT_TEST_BINS)
 t/contract/r/qname-base: t/contract/r/qname-base.o $(QNAME_COV)
+	$(CC) $(LDFLAGS) --coverage $+ -o $@
+t/contract/r/qname-dup: t/contract/r/qname-dup.o $(QNAME_COV)
 	$(CC) $(LDFLAGS) --coverage $+ -o $@
 t/contract/r/qname-string: t/contract/r/qname-string.o $(QNAME_COV)
 	$(CC) $(LDFLAGS) --coverage $+ -o $@

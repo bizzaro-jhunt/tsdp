@@ -6,6 +6,7 @@ coverage
 /libtsdp.*
 
 /t/contract/r/qname-base
+/t/contract/r/qname-dup
 /t/contract/r/qname-equiv
 /t/contract/r/qname-match
 /t/contract/r/qname-max

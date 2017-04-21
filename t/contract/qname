@@ -32,11 +32,16 @@ while (<DATA>) {
 	if ($test eq 'string') {
 		my ($in, $want) = m/$test\s+(.*?)\s+>>\s+(.*)/;
 		$in =~ s|\\|\\\\|g; # avoid premature unescapes.
-		chomp(my $out = qx(echo '$in' | ./t/contract/r/qname-${test} 2>&1));
+		chomp(my $out = qx(echo '$in' | ./t/contract/r/qname-string 2>&1));
 		if ($out ne $want) {
 			notok "${comment}[$in] did not yield [$want] (was [$out])";
 		} else {
-			ok "${comment}[$in] yields [$want]";
+			chomp(my $out = qx(echo '$in' | ./t/contract/r/qname-dup 2>&1));
+			if ($out ne $want) {
+				notok "${comment}[$in] did not (DUP) yield [$want] (was [$out])";
+			} else {
+				ok "${comment}[$in] yields [$want]";
+			}
 		}
 
 	} elsif ($test =~ m/^(equiv|match)$/) {

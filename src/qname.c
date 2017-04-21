@@ -48,25 +48,30 @@ tsdp_qname_parse(const char *string)
 	int fsm;               /* parser finite state machine state         */
 	int escaped;           /* last token was backslash (1) or not (0)   */
 	int i;                 /* for iterating over pairs in post-process  */
+	size_t len;
 
 	if (!string) {
 		debugf("invalid input string (%p / %s)\n", string, string);
 		return INVALID_QNAME;
 	}
 
-	if (strlen(string) > TSDP_MAX_QNAME_LEN) {
+	len = strlen(string);
+	if (len > TSDP_MAX_QNAME_LEN) {
 		debugf("input string %p is %lu octets long (>%u)\n", string, strlen(string), TSDP_MAX_QNAME_LEN);
 		return INVALID_QNAME;
 	}
 
 	qn = calloc(1, sizeof(struct tsdp_qname)
-	             + strlen(string) /* flyweight       */
-	             + 1);            /* NULL-terminator */
+	             +len  /* flyweight       */
+	             + 1); /* NULL-terminator */
 	if (!qn) {
 		debugf("alloc(%lu + %lu + %lu) [=%lu] failed\n", sizeof(struct tsdp_qname), strlen(string), 1LU,
-				sizeof(struct tsdp_qname) + strlen(string) + 1LU);
+				sizeof(struct tsdp_qname) + len + 1LU);
 		return INVALID_QNAME;
 	}
+
+	/* store the allocation size, so we can dup() later... */
+	qn->allocated = sizeof(struct tsdp_qname) + len + 1;
 
 	escaped = 0;
 	fsm = TSDP_PFSM_K1;
@@ -314,6 +319,19 @@ tsdp_qname_parse(const char *string)
 	   comparison and stringification easier, later */
 	s_sort(qn->pairs, qn->keys, qn->values);
 	return qn;
+}
+
+
+struct tsdp_qname *
+tsdp_qname_dup(struct tsdp_qname *qn)
+{
+	struct tsdp_qname *dup;
+
+	if (qn == INVALID_QNAME) return INVALID_QNAME;
+
+	dup = calloc(1, qn->allocated);
+	memcpy(dup, qn, qn->allocated);
+	return dup;
 }
 
 

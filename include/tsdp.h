@@ -9,6 +9,8 @@
 #define TSDP_MAX_QNAME_LEN    4095
 
 struct tsdp_qname {
+	size_t allocated; /* number of octets allocated to this qname */
+
 	unsigned int pairs;       /* how many key/value pairs are there?   */
 	unsigned int length;      /* how long is the canonical string rep? */
 	int wildcard;             /* is this a wildcard pattern match?     */
@@ -32,6 +34,16 @@ struct tsdp_qname {
  **/
 struct tsdp_qname *
 tsdp_qname_parse(const char *str);
+
+/**
+   Duplicate a qualified name into a newly allocated
+   tsdp_qname structure.
+
+   This function allocates memory, and may fail
+   if insufficient memory is available.
+ **/
+struct tsdp_qname *
+tsdp_qname_dup(struct tsdp_qname *n);
 
 /**
   Frees the memory allocated to the qualified name.
