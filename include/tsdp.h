@@ -250,6 +250,23 @@ tsdp_msg_payload(struct tsdp_msg *m);
 unsigned int
 tsdp_msg_nframes(struct tsdp_msg *m);
 
+int
+tsdp_msg_frame_as_string(char **dst, struct tsdp_msg *m, int n);
+
+int
+tsdp_msg_frame_as_tstamp8(uint64_t *dst, struct tsdp_msg *m, int n);
+
+int
+tsdp_msg_frame_as_uint2(uint16_t *dst, struct tsdp_msg *m, int n);
+
+int
+tsdp_msg_frame_as_uint4(uint32_t *dst, struct tsdp_msg *m, int n);
+
+int
+tsdp_msg_frame_as_uint8(uint64_t *dst, struct tsdp_msg *m, int n);
+
+int
+tsdp_msg_frame_as_float8(float *dst, struct tsdp_msg *m, int n);
 
 unsigned int
 tsdp_frame_type(struct tsdp_frame *f);

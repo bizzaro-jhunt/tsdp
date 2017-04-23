@@ -653,6 +653,97 @@ tsdp_msg_nframes(struct tsdp_msg *m)
 	return m->nframes;
 }
 
+int
+tsdp_msg_frame_as_string(char **dst, struct tsdp_msg *m, int n)
+{
+	struct tsdp_frame *f;
+
+	f = s_nth_frame(m, n);
+	if (!f) return 1;
+	if (f->type != TSDP_FRAME_STRING) return 1;
+
+	*dst = calloc(f->length + 1, sizeof(char));
+	if (!*dst) return 1;
+
+	memcpy(*dst, f->payload.string, f->length);
+	return 0;
+}
+
+int
+tsdp_msg_frame_as_tstamp8(uint64_t *dst, struct tsdp_msg *m, int n)
+{
+	struct tsdp_frame *f;
+
+	f = s_nth_frame(m, n);
+	if (!f) return 1;
+	if (f->type != TSDP_FRAME_TSTAMP) return 1;
+	if (f->length == 8) {
+		*dst = f->payload.tstamp;
+		return 0;
+	}
+	return 1;
+}
+
+int
+tsdp_msg_frame_as_uint2(uint16_t *dst, struct tsdp_msg *m, int n)
+{
+	struct tsdp_frame *f;
+
+	f = s_nth_frame(m, n);
+	if (!f) return 1;
+	if (f->type != TSDP_FRAME_UINT) return 1;
+	if (f->length == 2) {
+		*dst = f->payload.uint16;
+		return 0;
+	}
+	return 1;
+}
+
+int
+tsdp_msg_frame_as_uint4(uint32_t *dst, struct tsdp_msg *m, int n)
+{
+	struct tsdp_frame *f;
+
+	f = s_nth_frame(m, n);
+	if (!f) return 1;
+	if (f->type != TSDP_FRAME_UINT) return 1;
+	if (f->length == 4) {
+		*dst = f->payload.uint32;
+		return 0;
+	}
+	return 1;
+}
+
+int
+tsdp_msg_frame_as_uint8(uint64_t *dst, struct tsdp_msg *m, int n)
+{
+	struct tsdp_frame *f;
+
+	f = s_nth_frame(m, n);
+	if (!f) return 1;
+	if (f->type != TSDP_FRAME_UINT) return 1;
+	if (f->length == 8) {
+		*dst = f->payload.uint64;
+		return 0;
+	}
+	return 1;
+}
+
+int
+tsdp_msg_frame_as_float8(float *dst, struct tsdp_msg *m, int n)
+{
+	struct tsdp_frame *f;
+
+	f = s_nth_frame(m, n);
+	if (!f) return 1;
+	if (f->type != TSDP_FRAME_FLOAT) return 1;
+	if (f->length == 8) {
+		*dst = f->payload.float64;
+		return 0;
+	}
+	return 1;
+}
+
 
 unsigned int
 tsdp_frame_type(struct tsdp_frame *f)
