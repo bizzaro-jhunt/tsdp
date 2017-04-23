@@ -17,16 +17,38 @@
 	} \
 } while (0)
 
-void dump(struct tsdp_msg *m)
+struct tsdp_msg *
+repack(struct tsdp_msg *m)
 {
-	size_t i, len;
+	size_t len, left;
 	void *buf;
+	struct tsdp_msg *copy;
 
 	len = tsdp_msg_pack(NULL, 0, m);
 	if (len == 0) exit(5);
 	buf = malloc(len);
 	if (!buf) exit(4);
+
 	tsdp_msg_pack(buf, len, m);
+	copy = tsdp_msg_unpack(buf, len, &left);
+	if (!copy) exit(4);
+
+	free(buf);
+	return copy;
+}
+
+void dump(struct tsdp_msg *m)
+{
+	size_t i, len;
+	void *buf;
+	struct tsdp_msg *m2;
+
+	m2 = repack(m);
+	len = tsdp_msg_pack(NULL, 0, m2);
+	if (len == 0) exit(5);
+	buf = malloc(len);
+	if (!buf) exit(4);
+	tsdp_msg_pack(buf, len, m2);
 
 	printf("---\n");
 	for (i = 0; i < len; i++) {
@@ -36,6 +58,7 @@ void dump(struct tsdp_msg *m)
 	printf("\n\n");
 
 	free(buf);
+	tsdp_msg_free(m2);
 }
 
 int main(int argc, char **argv)

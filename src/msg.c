@@ -58,6 +58,10 @@ h2n64(uint64_t u)
 	return u;
 }
 
+#define n2h16(b) h2n16(*(uint16_t *)b)
+#define n2h32(b) h2n32(*(uint32_t *)b)
+#define n2h64(b) h2n64(*(uint64_t *)b)
+
 struct tsdp_msg *
 tsdp_msg_new(int version, int opcode, int flags, int payload)
 {
@@ -297,6 +301,9 @@ tsdp_msg_unpack(const void *buf, size_t n, size_t *left)
 	while (*left >= 2) { /* have enough for a header */
 		struct tsdp_frame *f;
 		unsigned short len = extract_frame_length(buf);
+		uint32_t u32;
+		uint64_t u64;
+
 		if (len > *left - 2) {
 			/* not enough in buf[] to read the payload */
 			return m;
@@ -311,6 +318,44 @@ tsdp_msg_unpack(const void *buf, size_t n, size_t *left)
 		f->type   = extract_frame_type(buf);
 		f->length = len;
 		memmove(f->data, buf + 2, len);
+
+		switch (f->type) {
+		case TSDP_FRAME_UINT:
+			switch (f->length) {
+			case 2:
+				f->payload.uint16 = n2h16(f->data);
+				break;
+			case 4:
+				f->payload.uint32 = n2h32(f->data);
+				break;
+			case 8:
+				f->payload.uint64 = n2h64(f->data);
+				break;
+			}
+			break;
+
+		case TSDP_FRAME_FLOAT:
+			switch (f->length) {
+			case 4:
+				u32 = n2h32(f->data);
+				f->payload.float32 = *((float *)&u32);
+				break;
+			case 8:
+				u64 = n2h64(f->data);
+				f->payload.float64 = *((float *)&u64);
+				break;
+			}
+			break;
+
+		case TSDP_FRAME_STRING:
+			f->payload.string = (char *)(f->data);
+			break;
+
+		case TSDP_FRAME_TSTAMP:
+			if (f->length == 8)
+				f->payload.tstamp = n2h64(f->data);
+			break;
+		}
 
 		m->nframes++;
 		if (!m->frames) {
