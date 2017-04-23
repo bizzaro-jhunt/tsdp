@@ -221,6 +221,14 @@ tsdp_msg_pack(void *buf, size_t len, struct tsdp_msg *m);
 struct tsdp_msg *
 tsdp_msg_unpack(const void *buf, size_t n, size_t *left);
 
+/**
+  Check the validity of a TSDP message, based on its opcode
+  and other details of the message itself.
+
+  Returns 1 if the message is well-formed and semantically
+  valid, and 0 if not.  This is designed to allow easy use
+  inside of `if` conditionals.
+ */
 int
 tsdp_msg_valid(struct tsdp_msg *m);
 
