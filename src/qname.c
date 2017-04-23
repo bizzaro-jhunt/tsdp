@@ -62,7 +62,7 @@ tsdp_qname_parse(const char *string)
 	}
 
 	qn = calloc(1, sizeof(struct tsdp_qname)
-	             +len  /* flyweight       */
+	             + len /* flyweight       */
 	             + 1); /* NULL-terminator */
 	if (!qn) {
 		debugf("alloc(%lu + %lu + %lu) [=%lu] failed\n", sizeof(struct tsdp_qname), strlen(string), 1LU,
@@ -325,12 +325,20 @@ tsdp_qname_parse(const char *string)
 struct tsdp_qname *
 tsdp_qname_dup(struct tsdp_qname *qn)
 {
+	int i;
 	struct tsdp_qname *dup;
 
 	if (qn == INVALID_QNAME) return INVALID_QNAME;
 
 	dup = calloc(1, qn->allocated);
 	memcpy(dup, qn, qn->allocated);
+
+	/* adjust all key/value pointers to point to _our_ flyweight... */
+	for (i = 0; i < TSDP_MAX_QNAME_PAIRS; i++) {
+		if (dup->keys[i])   dup->keys[i]   = dup->keys[i]   - (char *)qn + (char *)dup;
+		if (dup->values[i]) dup->values[i] = dup->values[i] - (char *)qn + (char *)dup;
+	}
+
 	return dup;
 }
 
