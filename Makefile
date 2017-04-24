@@ -44,6 +44,14 @@ MSG_FUZZ := $(MSG_SRC:.c=.fuzz.o)
 MSG_COV  := $(MSG_SRC:.c=.cov.o)
 CLEAN_FILES += $(MSG_OBJ) $(MSG_SO) $(MSG_FUZZ) $(MSG_COV)
 
+# source files that comprise the error handling implementation.
+ERROR_SRC  := src/errors.c
+ERROR_OBJ  := $(ERROR_SRC:.c=.o)
+ERROR_LO   := $(ERROR_SRC:.c=.lib.o)
+ERROR_FUZZ := $(ERROR_SRC:.c=.fuzz.o)
+ERROR_COV  := $(ERROR_SRC:.c=.cov.o)
+CLEAN_FILES += $(ERROR_OBJ) $(ERROR_SO) $(ERROR_FUZZ) $(ERROR_COV)
+
 
 # scripts that perform Contract Testing.
 CONTRACT_TEST_SCRIPTS := t/contract/qname \
@@ -129,10 +137,10 @@ clean:
 
 libs: libtsdp.a libtsdp.so
 # static library
-libtsdp.a: $(QNAME_OBJ) $(MSG_OBJ)
+libtsdp.a: $(ERROR_OBJ) $(QNAME_OBJ) $(MSG_OBJ)
 	ar cr $@ $+
 # dynamic library
-libtsdp.so: $(QNAME_LO) $(MSG_LO)
+libtsdp.so: $(ERROR_LO) $(QNAME_LO) $(MSG_LO)
 	$(CC) -shared -o $@ $+
 
 all: test libs

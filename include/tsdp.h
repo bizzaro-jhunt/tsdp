@@ -5,6 +5,19 @@
 #include <stdio.h>
 #include <stdint.h>
 
+#define TSDP_E_INVALID_VERSION   513
+#define TSDP_E_INVALID_OPCODE    514
+#define TSDP_E_INVALID_FLAG      515
+#define TSDP_E_INVALID_PAYLOAD   516
+#define TSDP_E_INVALID_ARITY     517
+#define TSDP_E_INVALID_FRAME     518
+
+const char *
+tsdp_strerror(int num);
+
+void
+tsdp_perror(const char *prefix);
+
 #define TSDP_MAX_QNAME_PAIRS    64
 #define TSDP_MAX_QNAME_LEN    4095
 

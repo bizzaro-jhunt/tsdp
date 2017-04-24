@@ -67,13 +67,17 @@ tsdp_msg_new(int version, int opcode, int flags, int payload)
 {
 	struct tsdp_msg *m;
 
-	errno = EINVAL;
-	if (!tsdp_version_ok(version)
-	 || !tsdp_opcode_ok(opcode)
-	 || !tsdp_flags_ok(flags)
-	 || !tsdp_payload_ok(payload)) {
-		return NULL;
-	}
+	errno = TSDP_E_INVALID_VERSION;
+	if (!tsdp_version_ok(version)) return NULL;
+
+	errno = TSDP_E_INVALID_OPCODE;
+	if (!tsdp_opcode_ok(opcode)) return NULL;
+
+	errno = TSDP_E_INVALID_FLAG;
+	if (!tsdp_flags_ok(flags)) return NULL;
+
+	errno = TSDP_E_INVALID_PAYLOAD;
+	if (!tsdp_payload_ok(payload)) return NULL;
 
 	m = calloc(1, sizeof(struct tsdp_msg));
 	if (!m) {
@@ -412,9 +416,8 @@ tsdp_msg_valid(struct tsdp_msg *m)
 		return 0;
 	}
 
-	if (m->version != TSDP_PROTOCOL_V1) {
-		return 0;
-	}
+	errno = TSDP_E_INVALID_VERSION;
+	if (!tsdp_version_ok(m->version)) return 0;
 
 #define requires_single_payload() \
 	do { if (bits8(m->payload) != 1) return 0; } while (0)
@@ -436,42 +439,60 @@ tsdp_msg_valid(struct tsdp_msg *m)
 
 	switch (m->opcode) {
 	case TSDP_OPCODE_HEARTBEAT:
+		errno = TSDP_E_INVALID_PAYLOAD;
 		requires_empty_payload();      /* per RFC-TSDP $4.3.1.1 */
+
+		errno = TSDP_E_INVALID_ARITY;
 		requires_exact_frame_count(2); /* per RFC-TSDP $4.3.1.2 */
+
+		errno = TSDP_E_INVALID_FRAME;
 		requires_frame(0, TSDP_FRAME_TSTAMP, 8);
 		requires_frame(1, TSDP_FRAME_UINT,   8);
 		return 1;
 
 	case TSDP_OPCODE_SUBMIT:
+		errno = TSDP_E_INVALID_PAYLOAD;
 		requires_single_payload();
 		switch (m->payload) {
 		case TSDP_PAYLOAD_SAMPLE:
+			errno = TSDP_E_INVALID_ARITY;
 			requires_min_frame_count(3);
-			requires_frame(0, TSDP_FRAME_STRING, 0);
-			requires_frame(1, TSDP_FRAME_TSTAMP, 8);
+
+			errno = TSDP_E_INVALID_FRAME;
+			requires_frame(0, TSDP_FRAME_STRING, 0);    /* qualified name   */
+			requires_frame(1, TSDP_FRAME_TSTAMP, 8);    /* measurement time */
 			for (i = 2; i < m->nframes; i++) {
-				requires_frame(i, TSDP_FRAME_FLOAT, 8);
+				requires_frame(i, TSDP_FRAME_FLOAT, 8); /* measurement(s)   */
 			}
 			return 1;
 
 		case TSDP_PAYLOAD_TALLY:
+			errno = TSDP_E_INVALID_ARITY;
 			requires_min_max_frame_count(2, 3);
-			requires_frame(0, TSDP_FRAME_STRING, 0);
-			requires_frame(1, TSDP_FRAME_TSTAMP, 8);
+
+			errno = TSDP_E_INVALID_FRAME;
+			requires_frame(0, TSDP_FRAME_STRING, 0);    /* qualified name   */
+			requires_frame(1, TSDP_FRAME_TSTAMP, 8);    /* measurement time */
 			if (m->nframes == 3) {
-				requires_frame(2, TSDP_FRAME_UINT, 8);
+				requires_frame(2, TSDP_FRAME_UINT, 8);  /* (increment)      */
 			}
 			return 1;
 
 		case TSDP_PAYLOAD_DELTA:
+			errno = TSDP_E_INVALID_ARITY;
 			requires_exact_frame_count(3);
-			requires_frame(0, TSDP_FRAME_STRING, 0);
-			requires_frame(1, TSDP_FRAME_TSTAMP, 8);
-			requires_frame(2, TSDP_FRAME_FLOAT,  8);
+
+			errno = TSDP_E_INVALID_FRAME;
+			requires_frame(0, TSDP_FRAME_STRING, 0); /* qualified name   */
+			requires_frame(1, TSDP_FRAME_TSTAMP, 8); /* measurement time */
+			requires_frame(2, TSDP_FRAME_FLOAT,  8); /* last value known */
 			return 1;
 
 		case TSDP_PAYLOAD_STATE:
+			errno = TSDP_E_INVALID_ARITY;
 			requires_min_max_frame_count(3, 4);
+
+			errno = TSDP_E_INVALID_FRAME;
 			requires_frame(0, TSDP_FRAME_STRING, 0);
 			requires_frame(1, TSDP_FRAME_TSTAMP, 8);
 			requires_frame(2, TSDP_FRAME_UINT,   4);
@@ -481,14 +502,20 @@ tsdp_msg_valid(struct tsdp_msg *m)
 			return 1;
 
 		case TSDP_PAYLOAD_EVENT:
+			errno = TSDP_E_INVALID_ARITY;
 			requires_exact_frame_count(3);
+
+			errno = TSDP_E_INVALID_FRAME;
 			requires_frame(0, TSDP_FRAME_STRING, 0);
 			requires_frame(1, TSDP_FRAME_TSTAMP, 8);
 			requires_frame(2, TSDP_FRAME_STRING, 0);
 			return 1;
 
 		case TSDP_PAYLOAD_FACT:
+			errno = TSDP_E_INVALID_ARITY;
 			requires_exact_frame_count(2);
+
+			errno = TSDP_E_INVALID_FRAME;
 			requires_frame(0, TSDP_FRAME_STRING, 0);
 			requires_frame(1, TSDP_FRAME_STRING, 0);
 			return 1;
@@ -496,10 +523,15 @@ tsdp_msg_valid(struct tsdp_msg *m)
 		return 0;
 
 	case TSDP_OPCODE_BROADCAST:
+		errno = TSDP_E_INVALID_PAYLOAD;
 		requires_single_payload();
+
 		switch (m->payload) {
 		case TSDP_PAYLOAD_SAMPLE:
+			errno = TSDP_E_INVALID_ARITY;
 			requires_exact_frame_count(9);
+
+			errno = TSDP_E_INVALID_FRAME;
 			requires_frame(0, TSDP_FRAME_STRING, 0);
 			requires_frame(1, TSDP_FRAME_TSTAMP, 8);
 			requires_frame(2, TSDP_FRAME_UINT,   4);
@@ -512,7 +544,10 @@ tsdp_msg_valid(struct tsdp_msg *m)
 			return 1;
 
 		case TSDP_PAYLOAD_TALLY:
+			errno = TSDP_E_INVALID_ARITY;
 			requires_exact_frame_count(4);
+
+			errno = TSDP_E_INVALID_FRAME;
 			requires_frame(0, TSDP_FRAME_STRING, 0);
 			requires_frame(1, TSDP_FRAME_TSTAMP, 8);
 			requires_frame(2, TSDP_FRAME_UINT,   4);
@@ -520,7 +555,10 @@ tsdp_msg_valid(struct tsdp_msg *m)
 			return 1;
 
 		case TSDP_PAYLOAD_DELTA:
+			errno = TSDP_E_INVALID_ARITY;
 			requires_exact_frame_count(4);
+
+			errno = TSDP_E_INVALID_FRAME;
 			requires_frame(0, TSDP_FRAME_STRING, 0);
 			requires_frame(1, TSDP_FRAME_TSTAMP, 8);
 			requires_frame(2, TSDP_FRAME_UINT,   4);
@@ -529,7 +567,10 @@ tsdp_msg_valid(struct tsdp_msg *m)
 
 		case TSDP_PAYLOAD_STATE:
 			if (m->flags & 0x40) { /* transition */
+				errno = TSDP_E_INVALID_ARITY;
 				requires_exact_frame_count(6);
+
+				errno = TSDP_E_INVALID_FRAME;
 				requires_frame(0, TSDP_FRAME_STRING, 0);
 				requires_frame(1, TSDP_FRAME_UINT,   4);
 				requires_frame(2, TSDP_FRAME_TSTAMP, 8);
@@ -538,7 +579,10 @@ tsdp_msg_valid(struct tsdp_msg *m)
 				requires_frame(5, TSDP_FRAME_STRING, 0);
 
 			} else { /* non-transition (no previous state) */
+				errno = TSDP_E_INVALID_ARITY;
 				requires_exact_frame_count(4);
+
+				errno = TSDP_E_INVALID_FRAME;
 				requires_frame(0, TSDP_FRAME_STRING, 0);
 				requires_frame(1, TSDP_FRAME_UINT,   4);
 				requires_frame(2, TSDP_FRAME_TSTAMP, 8);
@@ -547,14 +591,20 @@ tsdp_msg_valid(struct tsdp_msg *m)
 			return 1;
 
 		case TSDP_PAYLOAD_EVENT:
+			errno = TSDP_E_INVALID_ARITY;
 			requires_exact_frame_count(3);
+
+			errno = TSDP_E_INVALID_FRAME;
 			requires_frame(0, TSDP_FRAME_STRING, 0);
 			requires_frame(1, TSDP_FRAME_TSTAMP, 8);
 			requires_frame(2, TSDP_FRAME_STRING, 0);
 			return 1;
 
 		case TSDP_PAYLOAD_FACT:
+			errno = TSDP_E_INVALID_ARITY;
 			requires_exact_frame_count(2);
+
+			errno = TSDP_E_INVALID_FRAME;
 			requires_frame(0, TSDP_FRAME_STRING, 0);
 			requires_frame(1, TSDP_FRAME_STRING, 0);
 			return 1;
@@ -563,27 +613,36 @@ tsdp_msg_valid(struct tsdp_msg *m)
 		return 0;
 
 	case TSDP_OPCODE_FORGET:
+		errno = TSDP_E_INVALID_PAYLOAD;
 		requires_payloads(TSDP_PAYLOAD_SAMPLE
 		                | TSDP_PAYLOAD_TALLY
 		                | TSDP_PAYLOAD_DELTA
 		                | TSDP_PAYLOAD_STATE);
+
+		errno = TSDP_E_INVALID_ARITY;
 		requires_exact_frame_count(1);
 		requires_frame(0, TSDP_FRAME_STRING, 0);
 		return 1;
 
 	case TSDP_OPCODE_REPLAY:
+		errno = TSDP_E_INVALID_PAYLOAD;
 		requires_one_or_more_payloads();
+
+		errno = TSDP_E_INVALID_ARITY;
 		requires_exact_frame_count(0);
 		return 1;
 
 	case TSDP_OPCODE_SUBSCRIBE:
+		errno = TSDP_E_INVALID_PAYLOAD;
 		requires_one_or_more_payloads();
+
+		errno = TSDP_E_INVALID_ARITY;
 		requires_exact_frame_count(1);
 		requires_frame(0, TSDP_FRAME_STRING, 0);
 		return 1;
 
 	default:
-		/* unrecognized opcode! */
+		errno = TSDP_E_INVALID_OPCODE;
 		return 0;
 	}
 
