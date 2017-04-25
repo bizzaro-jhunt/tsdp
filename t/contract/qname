@@ -111,6 +111,7 @@ equiv <nil>   ! a=b            # nil/!nil inequality
 equiv a=b     ! <nil>          # !nil/nil inequality
 equiv a=b     ~ a=b            # base case
 equiv a=b,c=d ~ a=b,c=d        # multiple keys
+equiv a=b,c=  ~ a=b,c=         # missing value (symmetric)
 equiv a=b     ! a=c            # negative base case (values)
 equiv a=b     ! c=b            # negative base case (keys)
 equiv a=b     ! a=             # missing value
@@ -126,6 +127,7 @@ match a=b     ~ a=*            # partial match
 match a=b,c=d ~ a=*,c=d        # interior partial match
 match a=b,c=d ~ a=b,*          # wildcard match
 match a=b,c=d ~ a=*,*          # wildcard + partial match
+match a=b,c=  ~ a=b,c=         # missing value (symmetric)
 match a=b,c=d ! a=*            # partial match scope
 match a=b     ! a=c            # value mismatch
 match a=b     ! a=             # missing value

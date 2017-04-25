@@ -424,7 +424,8 @@ tsdp_qname_equal(struct tsdp_qname *a, struct tsdp_qname *b)
 		if (!!a->values[i] != !!b->values[i]) {
 			return 0; /* value not present in both */
 		}
-		if (strcmp(a->values[i], b->values[i]) != 0) {
+		if (a->values[i] &&
+		    strcmp(a->values[i], b->values[i]) != 0) {
 			return 0; /* value mismatch */
 		}
 	}
@@ -467,9 +468,10 @@ tsdp_qname_match(struct tsdp_qname *qn, struct tsdp_qname *pattern)
 			continue;
 		}
 		if (!!qn->values[j] != !!pattern->values[i]) {
-			return 0; /* value not present in both */
+			return 0; /* value present in one, but not the other */
 		}
-		if (strcmp(qn->values[j], pattern->values[i]) != 0) {
+		if (qn->values[j] &&
+		    strcmp(qn->values[j], pattern->values[i]) != 0) {
 			return 0; /* value mismatch */
 		}
 	}
