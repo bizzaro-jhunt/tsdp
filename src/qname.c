@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+#include <errno.h>
 
 #include "debug.h"
 
@@ -18,14 +19,34 @@
 #define s_is_character(c)  (TBL_QNAME_CHARACTER[((c) & 0xff)] == 1)
 #define s_is_wildcard(c)   ((c) == '*')
 
-#define swap(x,y) do { \
+#define swapp(x,y) do { \
 	x = (char *)((uintptr_t)(x) ^ (uintptr_t)(y)); \
 	y = (char *)((uintptr_t)(y) ^ (uintptr_t)(x)); \
 	x = (char *)((uintptr_t)(x) ^ (uintptr_t)(y)); \
 } while (0)
 
+#define swapu(x, y) do { x ^= y; y ^= x; x ^= y; } while (0)
+
 static void
-s_sort(int num, char **keys, char **values)
+s_compact(struct tsdp_qname *qn)
+{
+	int i;
+
+	for (i = 0; i < qn->pairs; i++) {
+		if (qn->keys[i] == NULL) {
+			if (i != qn->pairs - 1) {
+				qn->keys[i]     = qn->keys[qn->pairs - 1];
+				qn->values[i]   = qn->values[qn->pairs - 1];
+				qn->alloc[i]    = qn->alloc[qn->pairs - 1];
+				qn->partial[i]  = qn->partial[qn->pairs - 1];
+			}
+			qn->pairs--;
+		}
+	}
+}
+
+static void
+s_sort(int num, char **keys, char **values, int *alloc, int *partial)
 {
 	/* dumb insertion sort algorithm */
 	int i, j;
@@ -33,8 +54,10 @@ s_sort(int num, char **keys, char **values)
 	for (i = 1; i < num; i++) {
 		j = i;
 		while (j > 0 && strcmp(keys[j-1], keys[j]) > 0) {
-			swap(keys[j-1], keys[j]);
-			swap(values[j-1], values[j]);
+			swapp(keys[j-1], keys[j]);
+			swapp(values[j-1], values[j]);
+			swapu(alloc[j-1], alloc[j]);
+			swapu(partial[j-1], partial[j]);
 		}
 	}
 }
@@ -317,7 +340,7 @@ tsdp_qname_parse(const char *string)
 
 	/* sort the key/value pairs lexcially by key, to make
 	   comparison and stringification easier, later */
-	s_sort(qn->pairs, qn->keys, qn->values);
+	s_sort(qn->pairs, qn->keys, qn->values, qn->alloc, qn->partial);
 	return qn;
 }
 
@@ -335,8 +358,13 @@ tsdp_qname_dup(struct tsdp_qname *qn)
 
 	/* adjust all key/value pointers to point to _our_ flyweight... */
 	for (i = 0; i < TSDP_MAX_QNAME_PAIRS; i++) {
-		if (dup->keys[i])   dup->keys[i]   = dup->keys[i]   - (char *)qn + (char *)dup;
-		if (dup->values[i]) dup->values[i] = dup->values[i] - (char *)qn + (char *)dup;
+		if (qn->alloc[i]) {
+			dup->keys[i] = strdup(qn->keys[i]);
+			dup->values[i] = strdup(qn->values[i]);
+		} else {
+			if (dup->keys[i])   dup->keys[i]   = dup->keys[i]   - (char *)qn + (char *)dup;
+			if (dup->values[i]) dup->values[i] = dup->values[i] - (char *)qn + (char *)dup;
+		}
 	}
 
 	return dup;
@@ -346,6 +374,15 @@ tsdp_qname_dup(struct tsdp_qname *qn)
 void
 tsdp_qname_free(struct tsdp_qname *qn)
 {
+	int i;
+	if (qn) {
+		for (i = 0; i < qn->pairs; i++) {
+			if (qn->alloc[i]) {
+				free(qn->keys[i]);
+				free(qn->values[i]);
+			}
+		}
+	}
 	free(qn);
 }
 
@@ -361,6 +398,7 @@ tsdp_qname_string(struct tsdp_qname *qn)
 		return strdup("");
 	}
 
+	s_compact(qn);
 	string = calloc(qn->length + 1, sizeof(char));
 	if (!string) {
 		debugf("alloc(%u + %lu, %lu) [=%lu] failed\n", qn->length, 1LU, sizeof(char),
@@ -371,6 +409,9 @@ tsdp_qname_string(struct tsdp_qname *qn)
 	fill = string;
 	tombstone = fill + qn->length;
 	for (i = 0; i < qn->pairs && i < TSDP_MAX_QNAME_PAIRS; i++) {
+		if (!qn->keys[i])
+			continue; /* tombstone'd key */
+
 		p = qn->keys[i];
 		while (*p && fill != tombstone)
 			*fill++ = *p++;
@@ -453,7 +494,7 @@ tsdp_qname_match(struct tsdp_qname *qn, struct tsdp_qname *pattern)
 		found = 0;
 		for (j = 0; j < qn->pairs; j++) {
 			if (!qn->keys[j]) {
-				return 0; /* it is an error to have NULL keys */
+				continue; /* tombstone'd key */
 			}
 			if (strcmp(pattern->keys[i], qn->keys[j]) == 0) {
 				found = 1;
@@ -483,4 +524,86 @@ tsdp_qname_match(struct tsdp_qname *qn, struct tsdp_qname *pattern)
 		return 0;
 	}
 	return 1;
+}
+
+int
+tsdp_qname_set(struct tsdp_qname *qn, const char *key, const char *value)
+{
+	int i, tombstone;
+
+	errno = EINVAL;
+	if (!qn) return -1;
+
+	tombstone = -1;
+	for (i = 0; i < qn->pairs; i++) {
+		if (!qn->keys[i]) {
+			tombstone = i;
+			continue; /* tombstone'd key */
+		}
+		if (strcmp(qn->keys[i], key) == 0) {
+			qn->length = qn->length - strlen(value);
+			if (qn->values[i]) qn->length += strlen(qn->values[i]);
+			qn->keys[i]    = strdup(key);   /* not necessary, but simplifies */
+			qn->values[i]  = strdup(value); /* the implementation slightly.  */
+			qn->alloc[i]   = 1;
+			qn->partial[i] = 0;
+			return 0;
+		}
+	}
+
+	errno = ENOMEM; /* FIXME */
+	if (qn->pairs >= TSDP_MAX_QNAME_PAIRS) {
+		if (tombstone < 0) return -1;
+		/* reclaim tombstone */
+		qn->keys[tombstone]    = strdup(key);
+		qn->values[tombstone]  = strdup(value);
+		qn->alloc[tombstone]   = 1;
+		qn->partial[tombstone] = 0;
+		qn->length += strlen(key) + 1 + strlen(value) + 1;
+		return 0;
+	}
+
+	qn->keys[qn->pairs]    = strdup(key);
+	qn->values[qn->pairs]  = strdup(value);
+	qn->alloc[qn->pairs]   = 1;
+	qn->partial[qn->pairs] = 0;
+	qn->length += strlen(key) + 1 + strlen(value) + 1;
+	qn->pairs++;
+	return 0;
+}
+
+int
+tsdp_qname_unset(struct tsdp_qname *qn, const char *key)
+{
+	int i;
+	errno = EINVAL;
+	if (!qn) return -1;
+
+	for (i = 0; i < qn->pairs; i++) {
+		if (strcmp(qn->keys[i], key) == 0) {
+			qn->keys[i]    = NULL;
+			qn->values[i]  = NULL;
+			qn->alloc[i]   = 0;
+			qn->partial[i] = 0;
+			return 0;
+		}
+	}
+
+	return 0;
+}
+
+const char *
+tsdp_qname_get(struct tsdp_qname *qn, const char *key)
+{
+	int i;
+	errno = EINVAL;
+	if (!qn) return NULL;
+
+	for (i = 0; i < qn->pairs; i++) {
+		if (strcmp(qn->keys[i], key) == 0) {
+			return qn->values[i];
+		}
+	}
+
+	return NULL;
 }

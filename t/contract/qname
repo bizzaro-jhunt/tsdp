@@ -77,6 +77,36 @@ while (<DATA>) {
 			}
 		}
 
+	} elsif ($test eq 'get') {
+		my ($qn, $k, $want) = m/$test\s+(\S+)\s+(\S+)\s+(\S+)/;
+		$want = "$want / $want";
+		chomp(my $out = qx(./t/contract/r/qname-$test '$qn' '$k' 2>&1));
+		if ($out ne $want) {
+			notok "${comment} ($qn)->[$k] did not yield [$want] (was [$out])";
+		} else {
+			ok "$comment ($qn)->[$k] yields [$want]";
+		}
+
+	} elsif ($test eq 'set') {
+		my ($qn, $k, $v, $want) = m/$test\s+(\S+)\s+(\S+)=(\S+)\s+(\S+)/;
+		$want = "$want / $want";
+		chomp(my $out = qx(./t/contract/r/qname-$test '$qn' '$k' '$v' 2>&1));
+		if ($out ne $want) {
+			notok "${comment} ($qn)->[$k]='$v' did not yield [$want] (was [$out])";
+		} else {
+			ok "$comment ($qn)->[$k]='$v' yields [$want]";
+		}
+
+	} elsif ($test eq 'unset') {
+		my ($qn, $k, $want) = m/$test\s+(\S+)\s+(\S+)\s+(\S+)/;
+		$want = "$want / $want";
+		chomp(my $out = qx(./t/contract/r/qname-$test '$qn' '$k' 2>&1));
+		if ($out ne $want) {
+			notok "${comment} ($qn) w/o [$k] did not yield [$want] (was [$out])";
+		} else {
+			ok "$comment ($qn) w/o [$k] yields [$want]";
+		}
+
 	} else {
 		notok "invalid test: ${test}"
 	}
@@ -141,3 +171,18 @@ max 64 ok
 max 65 fail
 max 66 fail
 max 128 fail
+
+get key=value  key value        # simple get
+get a=b,c=d    c   d            # multi-key get
+get a=b,c=d    e   ~            # get of non-existent
+
+set a=b      c=d   a=b,c=d      # append key/value pair
+set a=b,c=d  a=d   a=d,c=d      # update multi-value
+set a=b      a=c   a=c          # update single value
+set a=b,c=   c=d   a=b,c=d      # update empty key
+set a=1      a=one a=one        # expand value size
+
+unset a=b      c     a=b        # unset non-existent key
+unset a=b,c=d  a     c=d        # unset last key
+unset a=b,c=d  c     a=b        # unset first key
+unset a=b,c=   c     a=b        # unset empty key

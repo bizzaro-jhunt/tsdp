@@ -31,6 +31,7 @@ struct tsdp_qname {
 	char *keys[TSDP_MAX_QNAME_PAIRS];    /* keys (pointers into flyweight)        */
 	char *values[TSDP_MAX_QNAME_PAIRS];  /* values (pointers into flyweight)      */
 	int   partial[TSDP_MAX_QNAME_PAIRS]; /* key is a '*' match (1) or not (0)     */
+	int   alloc[TSDP_MAX_QNAME_PAIRS];   /* key and value are malloc'd (via _set) */
 
 	char flyweight[];         /* munged copy of original qn string     */
 };
@@ -101,6 +102,15 @@ tsdp_qname_equal(struct tsdp_qname *a, struct tsdp_qname *b);
  **/
 int
 tsdp_qname_match(struct tsdp_qname *qn, struct tsdp_qname *pattern);
+
+int
+tsdp_qname_set(struct tsdp_qname *qn, const char *key, const char *value);
+
+int
+tsdp_qname_unset(struct tsdp_qname *qn, const char *key);
+
+const char *
+tsdp_qname_get(struct tsdp_qname *qn, const char *key);
 
 
 #define TSDP_PROTOCOL_V1       1
