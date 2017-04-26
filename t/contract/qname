@@ -107,6 +107,16 @@ while (<DATA>) {
 			ok "$comment ($qn) w/o [$k] yields [$want]";
 		}
 
+	} elsif ($test eq 'merge') {
+		my ($a, $b, $want) = m/$test\s+(\S+)\s+(\S+)\s+(\S+)/;
+		$want = "$want / $want";
+		chomp(my $out = qx(./t/contract/r/qname-$test '$a' '$b' 2>&1));
+		if ($out ne $want) {
+			notok "${comment} ($a) + ($b) did not yield [$want] (was [$out])";
+		} else {
+			ok "$comment ($a) + ($b) yields [$want]";
+		}
+
 	} else {
 		notok "invalid test: ${test}"
 	}
@@ -186,3 +196,8 @@ unset a=b      c     a=b        # unset non-existent key
 unset a=b,c=d  a     c=d        # unset last key
 unset a=b,c=d  c     a=b        # unset first key
 unset a=b,c=   c     a=b        # unset empty key
+
+
+merge a=b     a=b a=b           # identity merge
+merge a=b     c=d a=b,c=d       # append merge
+merge a=b,c=d c=e a=b,c=e       # override merge

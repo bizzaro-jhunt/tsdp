@@ -67,6 +67,7 @@ CONTRACT_TEST_BINS := t/contract/r/qname-base \
                       t/contract/r/qname-set \
                       t/contract/r/qname-get \
                       t/contract/r/qname-unset \
+                      t/contract/r/qname-merge \
                       t/contract/r/msg-acc \
                       t/contract/r/msg-in \
                       t/contract/r/msg-out
@@ -91,6 +92,8 @@ t/contract/r/qname-set: t/contract/r/qname-set.o $(QNAME_COV)
 t/contract/r/qname-get: t/contract/r/qname-get.o $(QNAME_COV)
 	$(CC) $(LDFLAGS) --coverage $+ -o $@
 t/contract/r/qname-unset: t/contract/r/qname-unset.o $(QNAME_COV)
+	$(CC) $(LDFLAGS) --coverage $+ -o $@
+t/contract/r/qname-merge: t/contract/r/qname-merge.o $(QNAME_COV)
 	$(CC) $(LDFLAGS) --coverage $+ -o $@
 t/contract/r/msg-acc: t/contract/r/msg-acc.o $(MSG_COV)
 	$(CC) $(LDFLAGS) --coverage $+ -o $@

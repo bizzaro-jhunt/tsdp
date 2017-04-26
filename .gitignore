@@ -14,6 +14,7 @@ coverage
 /t/contract/r/qname-set
 /t/contract/r/qname-get
 /t/contract/r/qname-unset
+/t/contract/r/qname-merge
 /t/contract/r/msg-acc
 /t/contract/r/msg-in
 /t/contract/r/msg-out

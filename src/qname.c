@@ -607,3 +607,17 @@ tsdp_qname_get(struct tsdp_qname *qn, const char *key)
 
 	return NULL;
 }
+
+int
+tsdp_qname_merge(struct tsdp_qname *a, struct tsdp_qname *b)
+{
+	int i, rc;
+
+	for (i = 0; i < b->pairs; i++) {
+		if (b->keys[i]) {
+			rc = tsdp_qname_set(a, b->keys[i], b->values[i]);
+			if (rc != 0) return rc;
+		}
+	}
+	return 0;
+}

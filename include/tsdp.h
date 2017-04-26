@@ -112,6 +112,9 @@ tsdp_qname_unset(struct tsdp_qname *qn, const char *key);
 const char *
 tsdp_qname_get(struct tsdp_qname *qn, const char *key);
 
+int
+tsdp_qname_merge(struct tsdp_qname *a, struct tsdp_qname *b);
+
 
 #define TSDP_PROTOCOL_V1       1
 #define tsdp_version_ok(v) ((v) == TSDP_PROTOCOL_V1)

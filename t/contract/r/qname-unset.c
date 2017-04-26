@@ -38,7 +38,7 @@ int main(int argc, char **argv)
 	}
 	tsdp_qname_free(qn); /* just to make sure */
 
-	s = tsdp_qname_string(copy); /* just to make sure */
+	s = tsdp_qname_string(copy);
 	fprintf(stdout, "%s\n", s);
 	return 0;
 }
