@@ -37,6 +37,9 @@ struct tsdp_qname {
 };
 #define INVALID_QNAME ((struct tsdp_qname*)(0))
 
+struct tsdp_qname *
+tsdp_qname_new();
+
 /**
    Parse a qualified name from an input string,
    returning the `struct tsdp_qname *` that results,

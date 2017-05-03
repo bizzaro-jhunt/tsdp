@@ -63,6 +63,18 @@ s_sort(int num, char **keys, char **values, int *alloc, int *partial)
 }
 
 struct tsdp_qname *
+tsdp_qname_new()
+{
+	struct tsdp_qname *qn;
+
+	qn = calloc(1, sizeof(struct tsdp_qname)); /* no flyweight */
+	if (!qn) return INVALID_QNAME;
+
+	qn->allocated = sizeof(struct tsdp_qname);
+	return qn;
+}
+
+struct tsdp_qname *
 tsdp_qname_parse(const char *string)
 {
 	struct tsdp_qname *qn; /* the qualified name itself (allocated)     */
