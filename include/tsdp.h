@@ -143,7 +143,9 @@ tsdp_qname_merge(struct tsdp_qname *a, struct tsdp_qname *b);
 #define TSDP_PAYLOAD_FACT      0x0020
 // ......................      ......
 #define TSDP_PAYLOAD_RSVP      0xffc0
+#define TSDP_PAYLOAD_ALL      (0xffff & ~TSDP_PAYLOAD_RSVP)
 #define tsdp_payload_ok(p) (((p) & TSDP_PAYLOAD_RSVP) == 0)
+
 
 
 struct tsdp_frame {
