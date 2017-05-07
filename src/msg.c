@@ -113,7 +113,7 @@ tsdp_msg_extend(struct tsdp_msg *m, int type, const void *v, size_t len)
 {
 	struct tsdp_frame *f;
 
-	f = calloc(1, sizeof(struct tsdp_frame));
+	f = calloc(1, sizeof(struct tsdp_frame) + len);
 	if (!f) return -1;
 
 	f->type = type;
@@ -163,12 +163,8 @@ tsdp_msg_extend(struct tsdp_msg *m, int type, const void *v, size_t len)
 
 		case TSDP_FRAME_STRING:
 			if (len > 0) {
-				f->payload.string = calloc(len, sizeof(char));
-				if (!f->payload.string) {
-					free(f);
-					return -1;
-				}
-				memcpy(f->payload.string, v, len);
+				memcpy(f->data, v, len);
+				f->payload.string = (char *)(f->data);
 			}
 			break;
 
