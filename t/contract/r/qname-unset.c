@@ -5,7 +5,7 @@
 
 int main(int argc, char **argv)
 {
-	struct tsdp_qname *qn, *copy;
+	struct qname *qn, *copy;
 	char *key, *s;
 	int rc;
 
@@ -14,31 +14,31 @@ int main(int argc, char **argv)
 		return 2;
 	}
 
-	qn = tsdp_qname_parse(argv[1]);
+	qn = qname_parse(argv[1]);
 	if (!qn) {
 		fprintf(stderr, "unable to parse '%s' as a qname...\n", argv[1]);
 		return 3;
 	}
 
 	key = argv[2];
-	rc = tsdp_qname_unset(qn, key);
+	rc = qname_unset(qn, key);
 	if (rc != 0) {
 		fprintf(stderr, "failed to unset %s\n", key);
 		return 4;
 	}
 
-	s = tsdp_qname_string(qn);
+	s = qname_string(qn);
 	fprintf(stdout, "%s / ", s);
 	free(s);
 
-	copy = tsdp_qname_dup(qn);
+	copy = qname_dup(qn);
 	if (!copy) {
 		fprintf(stderr, "unable to dup the '%s'...\n", argv[1]);
 		return 4;
 	}
-	tsdp_qname_free(qn); /* just to make sure */
+	qname_free(qn); /* just to make sure */
 
-	s = tsdp_qname_string(copy);
+	s = qname_string(copy);
 	fprintf(stdout, "%s\n", s);
 	return 0;
 }

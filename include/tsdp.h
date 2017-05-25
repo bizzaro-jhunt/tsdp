@@ -18,105 +18,34 @@ tsdp_strerror(int num);
 void
 tsdp_perror(const char *prefix);
 
-#define TSDP_MAX_QNAME_PAIRS    64
-#define TSDP_MAX_QNAME_LEN    4095
+#define QNAME_MAX_PAIRS    64
+#define QNAME_MAX_LEN    4095
 
-struct tsdp_qname {
-	size_t allocated; /* number of octets allocated to this qname */
+struct qname {
+	char *metric;
 
-	unsigned int pairs;       /* how many key/value pairs are there?   */
-	unsigned int length;      /* how long is the canonical string rep? */
-	int wildcard;             /* is this a wildcard pattern match?     */
+	struct {
+		char *key;
+		char *value;
+	} pairs[QNAME_MAX_PAIRS];
+	int i;
+	int wild;
 
-	char *keys[TSDP_MAX_QNAME_PAIRS];    /* keys (pointers into flyweight)        */
-	char *values[TSDP_MAX_QNAME_PAIRS];  /* values (pointers into flyweight)      */
-	int   partial[TSDP_MAX_QNAME_PAIRS]; /* key is a '*' match (1) or not (0)     */
-	int   alloc[TSDP_MAX_QNAME_PAIRS];   /* key and value are malloc'd (via _set) */
-
-	char flyweight[];         /* munged copy of original qn string     */
+	size_t len;
+	char *flat;
 };
-#define INVALID_QNAME ((struct tsdp_qname*)(0))
 
-struct tsdp_qname *
-tsdp_qname_new();
-
-/**
-   Parse a qualified name from an input string,
-   returning the `struct tsdp_qname *` that results,
-   or the value `INVALID_QNAME` on error, at which
-   point `errno` is set appropriately.
-
-   This function allocates memory, and may fail
-   if insufficient memory is available.
- **/
-struct tsdp_qname *
-tsdp_qname_parse(const char *str);
-
-/**
-   Duplicate a qualified name into a newly allocated
-   tsdp_qname structure.
-
-   This function allocates memory, and may fail
-   if insufficient memory is available.
- **/
-struct tsdp_qname *
-tsdp_qname_dup(struct tsdp_qname *n);
-
-/**
-  Frees the memory allocated to the qualified name.
-  Handles passing n as `INVALID_QNAME`.
- **/
-void
-tsdp_qname_free(struct tsdp_qname *n);
-
-/**
-  Allocates a fresh null-terminated string which
-  contains the canonical representation of the
-  given qualified name.
-
-  Returns the empty string for `INVALID_QNAME`.
- **/
-char *
-tsdp_qname_string(struct tsdp_qname *n);
-
-/**
-  Returns non-zero if the two qualified names
-  are exactly equivalent, handling wildcard as
-  explicit matches (that is `key=*` is equivalent
-  to `key=*`, but not `key=value`).
-
-  Returns 0 otherwise.
-
-  The value INVALID_QNAME is never equivalent
-  to anything, even another INVALID_QNAME.
- **/
-int
-tsdp_qname_equal(struct tsdp_qname *a, struct tsdp_qname *b);
-
-/**
-  Returns non-zero if the first qualified name (`qn`) matches the
-  second qualified name (`pattern`), honoring wildcard semantics
-  in the pattern name.
-
-  Returns 0 if `qn` does not match `pattern`.
-
-  The value INVALID_QNAME will never match any other name,
-  even another INVALID_QNAME.
- **/
-int
-tsdp_qname_match(struct tsdp_qname *qn, struct tsdp_qname *pattern);
-
-int
-tsdp_qname_set(struct tsdp_qname *qn, const char *key, const char *value);
-
-int
-tsdp_qname_unset(struct tsdp_qname *qn, const char *key);
-
-const char *
-tsdp_qname_get(struct tsdp_qname *qn, const char *key);
-
-int
-tsdp_qname_merge(struct tsdp_qname *a, struct tsdp_qname *b);
+struct qname* qname_new();
+struct qname* qname_parse(const char *s);
+struct qname* qname_dup();
+void qname_free(struct qname *q);
+char* qname_string(struct qname *q);
+int qname_equal(struct qname *a, struct qname *b);
+int qname_match(struct qname *q, struct qname *pattern);
+const char* qname_get(struct qname *q, const char *k);
+int qname_set(struct qname *q, const char *k, const char *v);
+int qname_unset(struct qname *q, const char *k);
+int qname_merge(struct qname *a, struct qname *b);
 
 
 #define TSDP_PROTOCOL_V1       1
@@ -280,6 +209,9 @@ tsdp_msg_payload(struct tsdp_msg *m);
 
 unsigned int
 tsdp_msg_nframes(struct tsdp_msg *m);
+
+struct tsdp_frame *
+tsdp_msg_frame(struct tsdp_msg *m, int n);
 
 int
 tsdp_msg_frame_as_string(char **dst, struct tsdp_msg *m, int n);

@@ -2,5 +2,5 @@
 
 int main(int argc, char **argv)
 {
-	return tsdp_qname_parse(argv[1]) == INVALID_QNAME ? 0 : 1;
+	return qname_parse(argv[1]) == NULL ? 0 : 1;
 }

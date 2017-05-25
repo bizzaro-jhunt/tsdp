@@ -3,7 +3,7 @@ digraph qname {
 	//
 	// This document describes the finite state machine
 	// that runs the TSDP Qualified Name parser code,
-	// tsdp_qname_parse(const char*)
+	// qname_parse(const char*)
 	//
 	// author:  James Hunt <james@niftylogic.com>
 	// created: 2016-07-10

@@ -15,7 +15,7 @@ int main(int argc, char **argv)
 			printf("malformed message\n");
 			return 0;
 		}
-		if (left)               printf("~~ %d octets left ~~\n", left);
+		if (left)               printf("~~ %lu octets left ~~\n", left);
 		if (!tsdp_msg_valid(m)) printf("~~ BOGON DETECTED ~~\n");
 		tsdp_msg_fdump(stdout, m);
 		return 0;

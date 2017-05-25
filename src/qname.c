@@ -15,153 +15,180 @@
 #define TSDP_PFSM_V2 4
 #define TSDP_PFSM_M  5
 
+static char *__QNAME_WILDCARD = "*";
+
+#define qfree(x) do { if ((x) != __QNAME_WILDCARD) free((x)); } while (0)
+#define qvalue(x) ((x) && (x) != __QNAME_WILDCARD)
+
 #include "qname_chars.inc"
 #define s_is_character(c)  (TBL_QNAME_CHARACTER[((c) & 0xff)] == 1)
 #define s_is_wildcard(c)   ((c) == '*')
 
-#define swapp(x,y) do { \
+#define swap(x,y) do { \
 	x = (char *)((uintptr_t)(x) ^ (uintptr_t)(y)); \
 	y = (char *)((uintptr_t)(y) ^ (uintptr_t)(x)); \
 	x = (char *)((uintptr_t)(x) ^ (uintptr_t)(y)); \
 } while (0)
 
-#define swapu(x, y) do { x ^= y; y ^= x; x ^= y; } while (0)
-
 static void
-s_compact(struct tsdp_qname *qn)
+s_qname_expand(struct qname *q)
 {
 	int i;
 
-	for (i = 0; i < qn->pairs; i++) {
-		if (qn->keys[i] == NULL) {
-			if (i != qn->pairs - 1) {
-				qn->keys[i]     = qn->keys[qn->pairs - 1];
-				qn->values[i]   = qn->values[qn->pairs - 1];
-				qn->alloc[i]    = qn->alloc[qn->pairs - 1];
-				qn->partial[i]  = qn->partial[qn->pairs - 1];
-			}
-			qn->pairs--;
-		}
+	if (!q->flat) return; /* already expanded */
+	q->metric = strdup(q->metric);
+	for (i = 0; i < q->i; i++) {
+		if (qvalue(q->pairs[i].key))   q->pairs[i].key = strdup(q->pairs[i].key);
+		if (qvalue(q->pairs[i].value)) q->pairs[i].value = strdup(q->pairs[i].value);
 	}
+	free(q->flat);
+	q->flat = NULL;
 }
 
 static void
-s_sort(int num, char **keys, char **values, int *alloc, int *partial)
+s_qname_contract(struct qname *q)
 {
-	/* dumb insertion sort algorithm */
-	int i, j;
+	int i;
+	size_t len;
+	char *f, *t;
 
-	for (i = 1; i < num; i++) {
-		j = i;
-		while (j > 0 && strcmp(keys[j-1], keys[j]) > 0) {
-			swapp(keys[j-1], keys[j]);
-			swapp(values[j-1], values[j]);
-			swapu(alloc[j-1], alloc[j]);
-			swapu(partial[j-1], partial[j]);
-		}
+	if (q->flat) return; /* already contracted */
+	len = strlen(q->metric) + 1;
+	for (i = 0; i < q->i; i++)
+		len = len + strlen(q->pairs[i].key)   + 1
+		          + strlen(q->pairs[i].value) + 1;
+
+	q->len = len;
+	q->flat = malloc(len);
+	if (!q->flat) return;
+
+	f = q->flat;
+#define copy(s) do { \
+	memcpy(f, (s), strlen(s)); \
+	t = f + strlen(s); *t++ = '\0'; \
+	qfree(s); \
+	(s) = t; \
+} while (0);
+
+	copy(q->metric);
+	for (i = 0; i < q->i; i++) {
+		copy(q->pairs[i].key);
+		copy(q->pairs[i].value);
 	}
+
+#undef copy
 }
 
-struct tsdp_qname *
-tsdp_qname_new()
+static inline int
+s_qname_next(struct qname *q)
 {
-	struct tsdp_qname *qn;
-
-	qn = calloc(1, sizeof(struct tsdp_qname)); /* no flyweight */
-	if (!qn) return INVALID_QNAME;
-
-	qn->allocated = sizeof(struct tsdp_qname);
-	return qn;
+	q->i++;
+	if (q->i >= QNAME_MAX_PAIRS) {
+		debugf("exceeded QNAME_MAX_PAIRS (%d) after key '%s'\n", QNAME_MAX_PAIRS, q->pairs[q->i-1].key);
+		return -1;
+	}
+	return 0;
 }
 
-struct tsdp_qname *
-tsdp_qname_parse(const char *string)
+
+
+
+struct qname *
+qname_new()
 {
-	struct tsdp_qname *qn; /* the qualified name itself (allocated)     */
-	const char *p;         /* pointer for iterating over string         */
-	char *fill;            /* pointer for filling flyweight             */
-	int fsm;               /* parser finite state machine state         */
-	int escaped;           /* last token was backslash (1) or not (0)   */
-	int i;                 /* for iterating over pairs in post-process  */
+	struct qname *q;
+
+	q = calloc(1, sizeof(struct qname));
+	if (!q) return NULL;
+
+	return q;
+}
+
+
+/**
+   Parse a qualified name from an input string,
+   returning the `struct qname *` that results,
+   or NULL on error, with `errno` set appropriately.
+
+   This function allocates memory, and may fail
+   if insufficient memory is available.
+ **/
+struct qname *
+qname_parse(const char *s)
+{
+	struct qname *q;
+	const char *p;
+	char *fill;
+	int fsm, esc, i;
 	size_t len;
 
-	if (!string) {
-		debugf("invalid input string (%p / %s)\n", string, string);
-		return INVALID_QNAME;
-	}
-
-	len = strlen(string);
-	if (len > TSDP_MAX_QNAME_LEN) {
+	if (!s) return NULL;
+	if (strlen(s) > QNAME_MAX_LEN) {
 		debugf("input string %p is %lu octets long (>%u)\n", string, strlen(string), TSDP_MAX_QNAME_LEN);
-		return INVALID_QNAME;
+		return NULL;
 	}
 
-	qn = calloc(1, sizeof(struct tsdp_qname)
-	             + len /* flyweight       */
-	             + 1); /* NULL-terminator */
-	if (!qn) {
-		debugf("alloc(%lu + %lu + %lu) [=%lu] failed\n", sizeof(struct tsdp_qname), strlen(string), 1LU,
-				sizeof(struct tsdp_qname) + len + 1LU);
-		return INVALID_QNAME;
-	}
+	q = qname_new();
+	if (!q) return NULL;
 
-	/* store the allocation size, so we can dup() later... */
-	qn->allocated = sizeof(struct tsdp_qname) + len + 1;
+	q->len  = strlen(s) + 1;
+	q->flat = strdup(s);
+	if (!q->flat) goto cleanup;
 
-	escaped = 0;
+	/* skip whitespace */
+	for (p = s; *p && *p == ' '; p++);
+
+	/* metric name */
+	q->metric = fill = q->flat;
+	while (*p && *p != ' ') *fill++ = *p++;
+
+	/* is metric name empty? */
+	if (fill == q->metric) goto cleanup;
+
+	/* do we have tags? */
+	if (*p) { p++; *fill++ = '\0'; }
+
+	esc = 0;
+	q->i = 0;
 	fsm = TSDP_PFSM_K1;
-	fill = qn->flyweight;
-	for (p = string; *p; p++) {
-		if (*p == '\\') {
-			escaped = 1;
-			continue;
-		}
-		if (escaped) {
+	for (; *p; p++) {
+		if (*p == '\\') { esc = 1; continue; }
+		if (esc) {
 			switch (fsm) {
-			case TSDP_PFSM_K1:
-				fsm = TSDP_PFSM_K2;
-				qn->keys[qn->pairs] = fill;
-			case TSDP_PFSM_K2:
-				*fill++ = *p;
-				qn->length++;
-				break;
+			case TSDP_PFSM_K1: q->pairs[q->i].key = fill;
+			                   fsm = TSDP_PFSM_K2;
+			case TSDP_PFSM_K2: *fill++ = *p;
+			                   break;
 
-			case TSDP_PFSM_V1:
-				fsm = TSDP_PFSM_V2;
-				qn->values[qn->pairs] = fill;
-			case TSDP_PFSM_V2:
-				*fill++ = *p;
-				qn->length++;
-				break;
+			case TSDP_PFSM_V1: q->pairs[q->i].value = fill;
+			                   fsm = TSDP_PFSM_V2;
+			case TSDP_PFSM_V2: *fill++ = *p;
+			                   break;
 
-			default:
-				free(qn);
-				debugf("invalid FSM state [%d] for escape sequence\n", fsm);
-				return INVALID_QNAME;
+			default: debugf("invalid FSM state [%d] for escape sequence\n", fsm);
+			         goto cleanup;
 			}
-			escaped = 0;
+			esc = 0;
 			continue;
 		}
 
 		switch (fsm) {
 		case TSDP_PFSM_K1:
+			if (*p == ' ') break;
 			if (s_is_character(*p)) {
-				qn->keys[qn->pairs] = fill;
+				q->pairs[q->i].key = fill;
 				*fill++ = *p;
-				qn->length++;
 				fsm = TSDP_PFSM_K2;
 
 			} else if (s_is_wildcard(*p)) {
-				qn->keys[qn->pairs] = fill;
-				qn->wildcard = 1;
+				q->pairs[q->i].key = fill;
+				q->wild = 1;
 				*fill++ = *p;
-				qn->length++;
 				fsm = TSDP_PFSM_M;
 
 			} else {
-				free(qn);
 				debugf("invalid token (%c / %#02x) for transition from state K1\n", *p, *p);
-				return INVALID_QNAME;
+				goto cleanup;
 			}
 			break;
 
@@ -169,62 +196,43 @@ tsdp_qname_parse(const char *string)
 		case TSDP_PFSM_K2:
 			if (*p == '=') {
 				*fill++ = '\0';
-				qn->length++;
 				fsm = TSDP_PFSM_V1;
 
 			} else if (*p == ',') {
 				*fill++ = '\0';
-				qn->length++;
-				qn->values[qn->pairs] = NULL;
-				qn->pairs++;
-				if (qn->pairs >= TSDP_MAX_QNAME_PAIRS) {
-					free(qn);
-					debugf("exceeded TSDP_MAX_QNAME_PAIRS (%d) after key '%s'\n", TSDP_MAX_QNAME_PAIRS, qn->keys[qn->pairs-1]);
-					return INVALID_QNAME;
-				}
+				q->pairs[q->i].value = NULL;
+				if (s_qname_next(q) != 0) goto cleanup;
 				fsm = TSDP_PFSM_K1;
 
 			} else if (s_is_character(*p)) {
 				*fill++ = *p;
-				qn->length++;
 
 			} else {
-				free(qn);
 				debugf("invalid token (%c / %#02x) for transition from state K2\n", *p, *p);
-				return INVALID_QNAME;
+				goto cleanup;
 			}
 			break;
 
 
 		case TSDP_PFSM_V1:
 			if (s_is_character(*p)) {
-				qn->values[qn->pairs] = fill;
+				q->pairs[q->i].value = fill;
 				*fill++ = *p;
-				qn->length++;
 				fsm = TSDP_PFSM_V2;
 
 			} else if (s_is_wildcard(*p)) {
-				qn->values[qn->pairs] = fill;
-				qn->partial[qn->pairs] = 1;
+				q->pairs[q->i].value = __QNAME_WILDCARD;
 				*fill++ = *p;
-				qn->length++;
 				fsm = TSDP_PFSM_M;
 
 			} else if (*p == ',') {
 				*fill++ = '\0';
-				qn->length++;
-				qn->pairs++;
-				if (qn->pairs >= TSDP_MAX_QNAME_PAIRS) {
-					free(qn);
-					debugf("exceeded TSDP_MAX_QNAME_PAIRS (%d) after key '%s'\n", TSDP_MAX_QNAME_PAIRS, qn->keys[qn->pairs-1]);
-					return INVALID_QNAME;
-				}
+				if (s_qname_next(q) != 0) goto cleanup;
 				fsm = TSDP_PFSM_K1;
 
 			} else {
-				free(qn);
 				debugf("invalid token (%c / %#02x) for transition from state V1\n", *p, *p);
-				return INVALID_QNAME;
+				goto cleanup;
 			}
 			break;
 
@@ -232,23 +240,15 @@ tsdp_qname_parse(const char *string)
 		case TSDP_PFSM_V2:
 			if (*p == ',') {
 				*fill++ = '\0';
-				qn->length++;
-				qn->pairs++;
-				if (qn->pairs >= TSDP_MAX_QNAME_PAIRS) {
-					free(qn);
-					debugf("exceeded TSDP_MAX_QNAME_PAIRS (%d) after key '%s'\n", TSDP_MAX_QNAME_PAIRS, qn->keys[qn->pairs-1]);
-					return INVALID_QNAME;
-				}
+				if (s_qname_next(q) != 0) goto cleanup;
 				fsm = TSDP_PFSM_K1;
 
 			} else if (s_is_character(*p)) {
 				*fill++ = *p;
-				qn->length++;
 
 			} else {
-				free(qn);
 				debugf("invalid token (%c / %#02x) for transition from state V2\n", *p, *p);
-				return INVALID_QNAME;
+				goto cleanup;
 			}
 			break;
 
@@ -256,27 +256,19 @@ tsdp_qname_parse(const char *string)
 		case TSDP_PFSM_M:
 			if (*p == ',') {
 				*fill++ = '\0';
-				qn->length++;
-				qn->pairs++;
-				if (qn->pairs >= TSDP_MAX_QNAME_PAIRS) {
-					free(qn);
-					debugf("exceeded TSDP_MAX_QNAME_PAIRS (%d) after key '%s'\n", TSDP_MAX_QNAME_PAIRS, qn->keys[qn->pairs-1]);
-					return INVALID_QNAME;
-				}
+				if (s_qname_next(q) != 0) goto cleanup;
 				fsm = TSDP_PFSM_K1;
 
 			} else {
-				free(qn);
 				debugf("invalid token (%c / %#02x) for transition from state M\n", *p, *p);
-				return INVALID_QNAME;
+				goto cleanup;
 			}
 			break;
 
 
 		defaut:
-			free(qn);
 			debugf("invalid FSM state [%d]\n", fsm);
-			return INVALID_QNAME;
+			goto cleanup;
 		}
 	}
 
@@ -286,96 +278,105 @@ tsdp_qname_parse(const char *string)
 	case TSDP_PFSM_V1:
 	case TSDP_PFSM_V2:
 	case TSDP_PFSM_M:
-		if (!qn->wildcard) {
-			qn->pairs++;
-		}
+		if (!q->wild) q->i++;
+		*fill++ = '\0';
 		break;
 
 	default:
-		free(qn);
 		debugf("invalid final FSM state [%d]\n", fsm);
-		return INVALID_QNAME;
+		goto cleanup;
 	}
 
 	/* remove trailing and leading whitespace from keys
 	   and values, adjusting length as necessary */
-	for (i = 0; i < qn->pairs; i++) {
-
-		fill = qn->keys[i];
-		if (fill) {
+	for (i = 0; i < q->i; i++) {
+		if (fill = q->pairs[i].key) {
 			/* leading space on key */
-			while (*fill == ' ') {
-				fill++;
-				qn->length--;
-			}
+			while (*fill == ' ') fill++;
 			if (!*fill) {
 				/* N.B.: this should never happen unless there is a bug in the
 				         K1 -> K2 (on whitespace) state transition in the FSM,
 				         but it doesn't hurt to be cautious. */
-				free(qn);
 				debugf("key %d was pure whitespace\n", i+1);
-				return INVALID_QNAME;
+				goto cleanup;
 			}
-			qn->keys[i] = fill;
+			q->pairs[i].key = fill;
 
 			/* trailing space on key */
-			while (*fill)
-				fill++;
-			fill--;
-			while (fill > qn->keys[i] && *fill == ' ') {
-				*fill-- = '\0';
-				qn->length--;
-			}
+			while (*fill) fill++; fill--; while (*fill == ' ') *fill-- = '\0';
 		}
 
-		fill = qn->values[i];
-		if (fill) {
+		if (fill = q->pairs[i].value) {
 			/* leading space on value */
-			while (*fill == ' ') {
-				fill++;
-				qn->length--;
-			}
-			qn->values[i] = fill;
+			while (*fill == ' ') fill++;
+			q->pairs[i].value = fill;
 
-			if (*fill) {
-				/* trailing space on value */
-				while (*fill)
-					fill++;
-				fill--;
-				while (fill > qn->values[i] && *fill == ' ') {
-					*fill-- = '\0';
-					qn->length--;
-				}
-			}
+			/* trailing space on value */
+			while (*fill) fill++; fill--; while (*fill == ' ') *fill-- = '\0';
 		}
 	}
 
 	/* sort the key/value pairs lexcially by key, to make
 	   comparison and stringification easier, later */
-	s_sort(qn->pairs, qn->keys, qn->values, qn->alloc, qn->partial);
-	return qn;
+	for (i = 1; i < q->i; i++) {
+		int j = i;
+		while (j > 0 && strcmp(q->pairs[j-1].key, q->pairs[j].key) > 0) {
+			swap(q->pairs[j-1].key,   q->pairs[j].key);
+			swap(q->pairs[j-1].value, q->pairs[j].value);
+		}
+	}
+	return q;
+
+cleanup:
+	if (q) qname_free(q);
+	return NULL;
 }
 
 
-struct tsdp_qname *
-tsdp_qname_dup(struct tsdp_qname *qn)
+/**
+   Duplicate a qualified name into a newly allocated
+   qname structure.
+
+   This function allocates memory, and may fail
+   if insufficient memory is available.
+ **/
+struct qname *
+qname_dup(struct qname *q)
 {
+	struct qname *dup;
 	int i;
-	struct tsdp_qname *dup;
 
-	if (qn == INVALID_QNAME) return INVALID_QNAME;
+	if (!q) return NULL;
 
-	dup = calloc(1, qn->allocated);
-	memcpy(dup, qn, qn->allocated);
+	dup = malloc(sizeof(struct qname));
+	if (!dup) return NULL;
 
-	/* adjust all key/value pointers to point to _our_ flyweight... */
-	for (i = 0; i < TSDP_MAX_QNAME_PAIRS; i++) {
-		if (qn->alloc[i]) {
-			dup->keys[i] = strdup(qn->keys[i]);
-			dup->values[i] = strdup(qn->values[i]);
-		} else {
-			if (dup->keys[i])   dup->keys[i]   = dup->keys[i]   - (char *)qn + (char *)dup;
-			if (dup->values[i]) dup->values[i] = dup->values[i] - (char *)qn + (char *)dup;
+	dup->wild = q->wild;
+	dup->i    = q->i;
+
+	if (!q->flat) { /* expanded */
+		dup->flat = NULL;
+		dup->metric = strdup(q->metric);
+		for (i = 0; i < q->i; i++) {
+			dup->pairs[i].key   = strdup(q->pairs[i].key);
+			dup->pairs[i].value = q->pairs[i].value;
+			if (dup->pairs[i].value && dup->pairs[i].value != __QNAME_WILDCARD)
+				dup->pairs[i].value = strdup(dup->pairs[i].value);
+		}
+	} else { /* contracted */
+		dup->len = q->len;
+		dup->flat = malloc(dup->len);
+		if (!dup->flat) {
+			qname_free(dup);
+			return NULL;
+		}
+		memcpy(dup->flat, q->flat, dup->len);
+		dup->metric = q->metric - q->flat + dup->flat;
+		for (i = 0; i < q->i; i++) {
+			dup->pairs[i].key   = q->pairs[i].key - q->flat + dup->flat;
+			dup->pairs[i].value = q->pairs[i].value;
+			if (q->pairs[i].value && q->pairs[i].value != __QNAME_WILDCARD)
+				dup->pairs[i].value = dup->pairs[i].value - q->flat + dup->flat;
 		}
 	}
 
@@ -383,148 +384,149 @@ tsdp_qname_dup(struct tsdp_qname *qn)
 }
 
 
+/**
+  Frees the memory allocated to the qualified name.
+  Handles passing n as `INVALID_QNAME`.
+ **/
 void
-tsdp_qname_free(struct tsdp_qname *qn)
+qname_free(struct qname *q)
 {
 	int i;
-	if (qn) {
-		for (i = 0; i < qn->pairs; i++) {
-			if (qn->alloc[i]) {
-				free(qn->keys[i]);
-				free(qn->values[i]);
-			}
-		}
+	if (!q) return;
+
+	if (q->flat) free(q->flat);
+	else for (i = 0; i < q->i; i++) {
+		qfree(q->pairs[i].key);
+		qfree(q->pairs[i].value);
 	}
-	free(qn);
 }
 
 
+/**
+  Allocates a fresh null-terminated string which
+  contains the canonical representation of the
+  given qualified name.
+
+  Returns the empty string for a null qname.
+ **/
 char *
-tsdp_qname_string(struct tsdp_qname *qn)
+qname_string(struct qname *q)
 {
-	char *string, *fill, *tombstone;
-	const char *p;
 	int i;
+	size_t len;
+	char *f, *s;
 
-	if (qn == INVALID_QNAME) {
-		return strdup("");
+	if (!q) return strdup("");
+
+	len = strlen(q->metric) + 1;
+	for (i = 0; i < q->i; i++) {
+		len += strlen(q->pairs[i].key)   + 1;
+		if (q->pairs[i].value)
+			len += strlen(q->pairs[i].value) + 1;
 	}
+	if (q->wild) len += 2;
 
-	s_compact(qn);
-	string = calloc(qn->length + 1, sizeof(char));
-	if (!string) {
-		debugf("alloc(%u + %lu, %lu) [=%lu] failed\n", qn->length, 1LU, sizeof(char),
-				(qn->length + 1LU) * sizeof(char));
-		return NULL;
-	}
+	s = malloc(len);
+	if (!s) return NULL;
 
-	fill = string;
-	tombstone = fill + qn->length;
-	for (i = 0; i < qn->pairs && i < TSDP_MAX_QNAME_PAIRS; i++) {
-		if (!qn->keys[i])
-			continue; /* tombstone'd key */
+	f = s;
+#define copy(s) do { \
+	memcpy(f, (s), strlen(s)); \
+	f += strlen(s); \
+} while (0);
 
-		p = qn->keys[i];
-		while (*p && fill != tombstone)
-			*fill++ = *p++;
-		if ( (p = qn->values[i]) != NULL) {
-			*fill++ = '=';
-			while (*p && fill != tombstone)
-				*fill++ = *p++;
+	copy(q->metric); *f++ = ' ';
+	for (i = 0; i < q->i; i++) {
+		copy(q->pairs[i].key);
+		if (q->pairs[i].value) {
+			*f++ = '=';
+			copy(q->pairs[i].value);
 		}
-		if (i + 1 != qn->pairs) {
-			*fill++ = ',';
-		}
+		*f++ = ',';
 	}
-	if (qn->wildcard) {
-		if (qn->pairs != 0) {
-			*fill++ = ',';
-		}
-		*fill++ = '*';
-	}
-
-	return string;
+	if (q->wild) *f++ = '*';
+	else f--;
+	*f = '\0';
+	return s;
+#undef copy
 }
 
+
+/**
+  Returns non-zero if the two qualified names
+  are exactly equivalent, handling wildcard as
+  explicit matches (that is `key=*` is equivalent
+  to `key=*`, but not `key=value`).
+
+  Returns 0 otherwise.
+
+  The NULL qname is never equivalent to anything,
+  not even another NULL qname.
+ **/
 int
-tsdp_qname_equal(struct tsdp_qname *a, struct tsdp_qname *b)
+qname_equal(struct qname *a, struct qname *b)
 {
 	unsigned int i;
 	/* the invalid qualified name is never equivalent to anything */
-	if (a == INVALID_QNAME || b == INVALID_QNAME) {
-		return 0;
-	}
+	if (!a || !b) return 0;
 
 	/* wildcard names only match other wildcard names */
-	if (a->wildcard != b->wildcard) {
-		return 0;
-	}
+	if (a->wild != b->wild) return 0;
 
 	/* equivalent names have the same number of key=value pairs */
-	if (a->pairs != b->pairs) {
-		return 0;
-	}
+	if (a->i != b->i) return 0;
 
 	/* pairs should be lexically ordered, so we can compare
 	   them sequentially for key- and value-equality */
-	for (i = 0; i < a->pairs; i++) {
-		if (!a->keys[i] || !b->keys[i]) {
-			return 0; /* it is an error to have NULL keys */
-		}
-		if (strcmp(a->keys[i], b->keys[i]) != 0) {
-			return 0; /* key mismatch */
-		}
-		if (!!a->values[i] != !!b->values[i]) {
-			return 0; /* value not present in both */
-		}
-		if (a->values[i] &&
-		    strcmp(a->values[i], b->values[i]) != 0) {
-			return 0; /* value mismatch */
-		}
+	for (i = 0; i < a->i; i++) {
+		if (!a->pairs[i].key || !b->pairs[i].key)              return 0; /* it is an error to have NULL keys */
+		if (strcmp(a->pairs[i].key, b->pairs[i].key) != 0)     return 0; /* key mismatch */
+		if (!!a->pairs[i].value != !!b->pairs[i].value)        return 0; /* value not present in both */
+		if (a->pairs[i].value &&
+		    strcmp(a->pairs[i].value, b->pairs[i].value) != 0) return 0; /* value mismatch */
 	}
 	return 1;
 }
 
+
+/**
+  Returns non-zero if the first qualified name (`qn`) matches the
+  second qualified name (`pattern`), honoring wildcard semantics
+  in the pattern name.
+
+  Returns 0 if `qn` does not match `pattern`.
+
+  The NULL qname will never match any other qname,
+  not even another NULL qname.
+ **/
 int
-tsdp_qname_match(struct tsdp_qname *qn, struct tsdp_qname *pattern)
+qname_match(struct qname *qn, struct qname *pattern)
 {
 	unsigned int i, j;
 	int found;
 
 	/* the invalid qualified name never matches to anything */
-	if (qn == INVALID_QNAME || pattern == INVALID_QNAME) {
-		return 0;
-	}
+	if (!qn || !pattern) return 0;
 
 	/* pattern constraints must be met first */
-	for (i = 0; i < pattern->pairs; i++) {
-		if (!pattern->keys[i]) {
-			return 0; /* it is an error to have NULL keys */
-		}
+	for (i = 0; i < pattern->i; i++) {
+		if (!pattern->pairs[i].key) return 0; /* it is an error to have NULL keys */
 
 		/* see if the key is present in the qn */
 		found = 0;
-		for (j = 0; j < qn->pairs; j++) {
-			if (!qn->keys[j]) {
-				continue; /* tombstone'd key */
-			}
-			if (strcmp(pattern->keys[i], qn->keys[j]) == 0) {
+		for (j = 0; j < qn->i; j++) {
+			if (strcmp(pattern->pairs[i].key, qn->pairs[j].key) == 0) {
 				found = 1;
 				break;
 			}
 		}
-		if (!found) {
-			return 0; /* pattern constraint not met */
-		}
-
-		if (pattern->partial[i]) {
-			continue;
-		}
-		if (!!qn->values[j] != !!pattern->values[i]) {
+		if (!found) return 0; /* pattern constraint not met */
+		if (pattern->pairs[i].value == __QNAME_WILDCARD) continue;
+		if (!!qn->pairs[j].value != !!pattern->pairs[i].value) {
 			return 0; /* value present in one, but not the other */
 		}
-		if (qn->values[j] &&
-		    strcmp(qn->values[j], pattern->values[i]) != 0) {
+		if (qn->pairs[j].value &&
+		    strcmp(qn->pairs[j].value, pattern->pairs[i].value) != 0) {
 			return 0; /* value mismatch */
 		}
 	}
@@ -532,102 +534,96 @@ tsdp_qname_match(struct tsdp_qname *qn, struct tsdp_qname *pattern)
 	/* if the length of the name and the pattern don't match,
 	   the name must be longer, and we need to check if the
 	   pattern is a wildcard or not */
-	if (qn->pairs != pattern->pairs && !pattern->wildcard) {
+	if (qn->i != pattern->i && !pattern->wild) {
 		return 0;
 	}
 	return 1;
 }
 
-int
-tsdp_qname_set(struct tsdp_qname *qn, const char *key, const char *value)
-{
-	int i, tombstone;
 
-	errno = EINVAL;
-	if (!qn) return -1;
-
-	tombstone = -1;
-	for (i = 0; i < qn->pairs; i++) {
-		if (!qn->keys[i]) {
-			tombstone = i;
-			continue; /* tombstone'd key */
-		}
-		if (strcmp(qn->keys[i], key) == 0) {
-			qn->length = qn->length - strlen(value);
-			if (qn->values[i]) qn->length += strlen(qn->values[i]);
-			qn->keys[i]    = strdup(key);   /* not necessary, but simplifies */
-			qn->values[i]  = strdup(value); /* the implementation slightly.  */
-			qn->alloc[i]   = 1;
-			qn->partial[i] = 0;
-			return 0;
-		}
-	}
-
-	errno = ENOMEM; /* FIXME */
-	if (qn->pairs >= TSDP_MAX_QNAME_PAIRS) {
-		if (tombstone < 0) return -1;
-		/* reclaim tombstone */
-		qn->keys[tombstone]    = strdup(key);
-		qn->values[tombstone]  = strdup(value);
-		qn->alloc[tombstone]   = 1;
-		qn->partial[tombstone] = 0;
-		qn->length += strlen(key) + 1 + strlen(value) + 1;
-		return 0;
-	}
-
-	qn->keys[qn->pairs]    = strdup(key);
-	qn->values[qn->pairs]  = strdup(value);
-	qn->alloc[qn->pairs]   = 1;
-	qn->partial[qn->pairs] = 0;
-	qn->length += strlen(key) + 1 + strlen(value) + 1;
-	qn->pairs++;
-	return 0;
-}
 
 int
-tsdp_qname_unset(struct tsdp_qname *qn, const char *key)
+qname_set(struct qname *q, const char *key, const char *value)
 {
 	int i;
-	errno = EINVAL;
-	if (!qn) return -1;
 
-	for (i = 0; i < qn->pairs; i++) {
-		if (strcmp(qn->keys[i], key) == 0) {
-			qn->keys[i]    = NULL;
-			qn->values[i]  = NULL;
-			qn->alloc[i]   = 0;
-			qn->partial[i] = 0;
+	errno = EINVAL;
+	if (!q) return -1;
+	s_qname_expand(q);
+
+	for (i = 0; i < q->i; i++) {
+		if (strcmp(q->pairs[i].key, key) == 0) {
+			free(q->pairs[i].value);
+			q->pairs[i].value = value ? strdup(value) : NULL;
+			return 0;
+		}
+	}
+	if (q->i + 1 >= QNAME_MAX_PAIRS) {
+		errno = ENOBUFS;
+		return -1;
+	}
+
+	q->pairs[q->i].key = strdup(key);
+	q->pairs[q->i].value = strcmp(value, __QNAME_WILDCARD) == 0
+	                     ? __QNAME_WILDCARD
+	                     : value ? strdup(value) : NULL;
+	q->i++;
+	return 0;
+}
+
+
+int
+qname_unset(struct qname *q, const char *key)
+{
+	int i, j;
+	errno = EINVAL;
+	if (!q) return -1;
+	s_qname_expand(q);
+
+	for (i = 0; i < q->i; i++) {
+		if (strcmp(q->pairs[i].key, key) == 0) {
+			qfree(q->pairs[i].key);
+			qfree(q->pairs[i].value);
+
+			for (j = i+1; j < q->i; j++) {
+				q->pairs[j-1].key   = q->pairs[j].key;
+				q->pairs[j-1].value = q->pairs[j].value;
+			}
+			q->i--;
 			return 0;
 		}
 	}
 
 	return 0;
 }
+
 
 const char *
-tsdp_qname_get(struct tsdp_qname *qn, const char *key)
+qname_get(struct qname *q, const char *key)
 {
 	int i;
 	errno = EINVAL;
-	if (!qn) return NULL;
+	if (!q) return NULL;
 
-	for (i = 0; i < qn->pairs; i++) {
-		if (strcmp(qn->keys[i], key) == 0) {
-			return qn->values[i];
-		}
-	}
-
+	for (i = 0; i < q->i; i++)
+		if (strcmp(q->pairs[i].key, key) == 0)
+			return q->pairs[i].value;
 	return NULL;
 }
 
+
 int
-tsdp_qname_merge(struct tsdp_qname *a, struct tsdp_qname *b)
+qname_merge(struct qname *a, struct qname *b)
 {
 	int i, rc;
+	errno = EINVAL;
+	if (!a || !b) return -1;
+	s_qname_expand(a);
+	s_qname_expand(b);
 
-	for (i = 0; i < b->pairs; i++) {
-		if (b->keys[i]) {
-			rc = tsdp_qname_set(a, b->keys[i], b->values[i]);
+	for (i = 0; i < b->i; i++) {
+		if (b->pairs[i].key) {
+			rc = qname_set(a, b->pairs[i].key, b->pairs[i].value);
 			if (rc != 0) return rc;
 		}
 	}

@@ -16,7 +16,7 @@ int main(int argc, char **argv)
 {
 	char buf[8192];
 	while ( (fgets(buf, 8192, stdin)) != NULL ) {
-		printf("%s\n", tsdp_qname_string(tsdp_qname_parse(chomp(buf))));
+		printf("%s\n", qname_string(qname_parse(chomp(buf))));
 	}
 	return 0;
 }

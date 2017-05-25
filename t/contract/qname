@@ -31,7 +31,9 @@ while (<DATA>) {
 
 	if ($test eq 'string') {
 		my ($in, $want) = m/$test\s+(.*?)\s+>>\s+(.*)/;
-		$in =~ s|\\|\\\\|g; # avoid premature unescapes.
+		$in   =~ s|\\|\\\\|g; # avoid premature unescapes.
+		$in   =~ s|[:/]| |;   # metric/tags -> 'metric tags'
+		$want =~ s|[:/]| |;   # metric:tags -> 'metric tags'
 		chomp(my $out = qx(echo '$in' | ./t/contract/r/qname-string 2>&1));
 		if ($out ne $want) {
 			notok "${comment}[$in] did not yield [$want] (was [$out])";
@@ -46,6 +48,8 @@ while (<DATA>) {
 
 	} elsif ($test =~ m/^(equiv|match)$/) {
 		my ($a, $rel, $b) = m/$test\s+(.*?)\s+([~!])\s+(.*)/;
+		$a =~ s|[:/]| |; # metric/tags -> 'metric tags'
+		$b =~ s|[:/]| |; # metric:tags -> 'metric tags'
 		chomp(my $err = qx(./t/contract/r/qname-${test} '$a' '$rel' '$b' </dev/null 2>&1));
 		my $exit = $? >> 8;
 		if ($exit == 0) {
@@ -60,7 +64,7 @@ while (<DATA>) {
 		my ($len, $ok) = m/$test\s+(\d+)\s+(ok|fail)/;
 		for my $slug (qw(a$_=$_ k$_ w$_=*)) {
 			my $s = join(',', map { eval "\"$slug\"" } 1..$len);
-			chomp(my $err = qx(./t/contract/r/qname-${test} '$s' </dev/null 2>&1));
+			chomp(my $err = qx(./t/contract/r/qname-${test} 'thing $s' </dev/null 2>&1));
 			my $exit = $? >> 8;
 			if ($exit == 0) {
 				if ($ok eq 'ok') {
@@ -79,6 +83,8 @@ while (<DATA>) {
 
 	} elsif ($test eq 'get') {
 		my ($qn, $k, $want) = m/$test\s+(\S+)\s+(\S+)\s+(\S+)/;
+		$qn   =~ s|[:/]| |; # metric/tags -> 'metric tags'
+		$want =~ s|[:/]| |; # metric:tags -> 'metric tags'
 		$want = "$want / $want";
 		chomp(my $out = qx(./t/contract/r/qname-$test '$qn' '$k' 2>&1));
 		if ($out ne $want) {
@@ -89,6 +95,8 @@ while (<DATA>) {
 
 	} elsif ($test eq 'set') {
 		my ($qn, $k, $v, $want) = m/$test\s+(\S+)\s+(\S+)=(\S+)\s+(\S+)/;
+		$qn   =~ s|[:/]| |; # metric/tags -> 'metric tags'
+		$want =~ s|[:/]| |; # metric:tags -> 'metric tags'
 		$want = "$want / $want";
 		chomp(my $out = qx(./t/contract/r/qname-$test '$qn' '$k' '$v' 2>&1));
 		if ($out ne $want) {
@@ -99,6 +107,8 @@ while (<DATA>) {
 
 	} elsif ($test eq 'unset') {
 		my ($qn, $k, $want) = m/$test\s+(\S+)\s+(\S+)\s+(\S+)/;
+		$qn   =~ s|[:/]| |; # metric/tags -> 'metric tags'
+		$want =~ s|[:/]| |; # metric:tags -> 'metric tags'
 		$want = "$want / $want";
 		chomp(my $out = qx(./t/contract/r/qname-$test '$qn' '$k' 2>&1));
 		if ($out ne $want) {
@@ -109,6 +119,9 @@ while (<DATA>) {
 
 	} elsif ($test eq 'merge') {
 		my ($a, $b, $want) = m/$test\s+(\S+)\s+(\S+)\s+(\S+)/;
+		$a    =~ s|[:/]| |; # metric/tags -> 'metric tags'
+		$b    =~ s|[:/]| |; # metric:tags -> 'metric tags'
+		$want =~ s|[:/]| |; # metric:tags -> 'metric tags'
 		$want = "$want / $want";
 		chomp(my $out = qx(./t/contract/r/qname-$test '$a' '$b' 2>&1));
 		if ($out ne $want) {
@@ -124,57 +137,57 @@ while (<DATA>) {
 exit $rc;
 
 __DATA__
-string a=b       >> a=b        # base case
-string abc=d     >> abc=d      # multi-character key
-string a=def     >> a=def      # multi-character value
-string abc=def   >> abc=def    # multi-character key and value
-string a=b,c=d   >> a=b,c=d    # compound case (pre-ordered)
-string c=d,a=b   >> a=b,c=d    # compound case re-ordered
-string *         >> *          # single wildcard
-string a=*       >> a=*        # partial match
-string a=*,c=d   >> a=*,c=d    # interior partial match
-string a=b,*     >> a=b,*      # trailing wildcard
-string a = b     >> a=b        # key/value delimiter whitespace
-string a   =  b  >> a=b        # repeated whitespace
-string a=b , c=d >> a=b,c=d    # pair delimiter whitespace
-string a=b c,d=e >> a=b c,d=e  # whitespace preservation
-string a=\b      >> a=b        # non-escape pass-through (values)
-string \a=\b     >> a=b        # non-escape pass-through (keys)
-string a=b\ c    >> a=b c      # whitespace escaped
-string yes=no    >> yes=no     # multi-char keys / values
-string set       >> set        # omitted value eof
-string a=,b      >> a,b        # omitted value=
-string a,b       >> a,b        # omitted value,
+string cpu/a=b       >> cpu/a=b        # base case
+string cpu/abc=d     >> cpu/abc=d      # multi-character key
+string cpu/a=def     >> cpu/a=def      # multi-character value
+string cpu/abc=def   >> cpu/abc=def    # multi-character key and value
+string cpu/a=b,c=d   >> cpu/a=b,c=d    # compound case (pre-ordered)
+string cpu/c=d,a=b   >> cpu/a=b,c=d    # compound case re-ordered
+string cpu/*         >> cpu/*          # single wildcard
+string cpu/a=*       >> cpu/a=*        # partial match
+string cpu/a=*,c=d   >> cpu/a=*,c=d    # interior partial match
+string cpu/a=b,*     >> cpu/a=b,*      # trailing wildcard
+string cpu/a = b     >> cpu/a=b        # key/value delimiter whitespace
+string cpu/a   =  b  >> cpu/a=b        # repeated whitespace
+string cpu/a=b , c=d >> cpu/a=b,c=d    # pair delimiter whitespace
+string cpu/a=b c,d=e >> cpu/a=b c,d=e  # whitespace preservation
+string cpu/a=\b      >> cpu/a=b        # non-escape pass-through (values)
+string cpu/\a=\b     >> cpu/a=b        # non-escape pass-through (keys)
+string cpu/a=b\ c    >> cpu/a=b c      # whitespace escaped
+string cpu/yes=no    >> cpu/yes=no     # multi-char keys / values
+string cpu/set       >> cpu/set        # omitted value eof
+string cpu/a=,b      >> cpu/a,b        # omitted value=
+string cpu/a,b       >> cpu/a,b        # omitted value,
 
-equiv <nil>   ! <nil>          # nil/nil inequality
-equiv <nil>   ! a=b            # nil/!nil inequality
-equiv a=b     ! <nil>          # !nil/nil inequality
-equiv a=b     ~ a=b            # base case
-equiv a=b,c=d ~ a=b,c=d        # multiple keys
-equiv a=b,c=  ~ a=b,c=         # missing value (symmetric)
-equiv a=b     ! a=c            # negative base case (values)
-equiv a=b     ! c=b            # negative base case (keys)
-equiv a=b     ! a=             # missing value
-equiv a=b,c=d ! a=b            # arity mismatch
-equiv a=b,*   ! a=b            # wildcard mismatch
-equiv a=b,*   ~ a=b,*          # wildcard equality
+equiv <nil>       ! <nil>          # nil/nil inequality
+equiv <nil>       ! cpu/a=b            # nil/!nil inequality
+equiv cpu/a=b     ! <nil>          # !nil/nil inequality
+equiv cpu/a=b     ~ cpu/a=b            # base case
+equiv cpu/a=b,c=d ~ cpu/a=b,c=d        # multiple keys
+equiv cpu/a=b,c=  ~ cpu/a=b,c=         # missing value (symmetric)
+equiv cpu/a=b     ! cpu/a=c            # negative base case (values)
+equiv cpu/a=b     ! cpu/c=b            # negative base case (keys)
+equiv cpu/a=b     ! cpu/a=             # missing value
+equiv cpu/a=b,c=d ! cpu/a=b            # arity mismatch
+equiv cpu/a=b,*   ! cpu/a=b            # wildcard mismatch
+equiv cpu/a=b,*   ~ cpu/a=b,*          # wildcard equality
 
-match <nil>   ! <nil>          # nil/nil mismatch
-match <nil>   ! a=b            # nil/!nil mismatch
-match a=b     ! <nil>          # !nil/nil mismatch
-match a=b     ~ a=b            # literal match
-match a=b     ~ a=*            # partial match
-match a=b,c=d ~ a=*,c=d        # interior partial match
-match a=b,c=d ~ a=b,*          # wildcard match
-match a=b,c=d ~ a=*,*          # wildcard + partial match
-match a=b,c=  ~ a=b,c=         # missing value (symmetric)
-match a=b,c=d ! a=*            # partial match scope
-match a=b     ! a=c            # value mismatch
-match a=b     ! a=             # missing value
-match a=b     ! c=d            # key mismatch
-match a=b     ! c=d,*          # pattern constraint
-match a=b     ~ a=b,*          # superfluous wildcard
-match a=b,c=d ! a=b            # arity mismatch
+match <nil>       ! <nil>          # nil/nil mismatch
+match <nil>       ! cpu/a=b            # nil/!nil mismatch
+match cpu/a=b     ! <nil>          # !nil/nil mismatch
+match cpu/a=b     ~ cpu/a=b            # literal match
+match cpu/a=b     ~ cpu/a=*            # partial match
+match cpu/a=b,c=d ~ cpu/a=*,c=d        # interior partial match
+match cpu/a=b,c=d ~ cpu/a=b,*          # wildcard match
+match cpu/a=b,c=d ~ cpu/a=*,*          # wildcard + partial match
+match cpu/a=b,c=  ~ cpu/a=b,c=         # missing value (symmetric)
+match cpu/a=b,c=d ! cpu/a=*            # partial match scope
+match cpu/a=b     ! cpu/a=c            # value mismatch
+match cpu/a=b     ! cpu/a=             # missing value
+match cpu/a=b     ! cpu/c=d            # key mismatch
+match cpu/a=b     ! cpu/c=d,*          # pattern constraint
+match cpu/a=b     ~ cpu/a=b,*          # superfluous wildcard
+match cpu/a=b,c=d ! cpu/a=b            # arity mismatch
 
 max 1 ok
 max 64 ok
@@ -182,22 +195,22 @@ max 65 fail
 max 66 fail
 max 128 fail
 
-get key=value  key value        # simple get
-get a=b,c=d    c   d            # multi-key get
-get a=b,c=d    e   ~            # get of non-existent
+get cpu/key=value  key value        # simple get
+get cpu/a=b,c=d    c   d            # multi-key get
+get cpu/a=b,c=d    e   ~            # get of non-existent
 
-set a=b      c=d   a=b,c=d      # append key/value pair
-set a=b,c=d  a=d   a=d,c=d      # update multi-value
-set a=b      a=c   a=c          # update single value
-set a=b,c=   c=d   a=b,c=d      # update empty key
-set a=1      a=one a=one        # expand value size
+set cpu/a=b      c=d   cpu/a=b,c=d      # append key/value pair
+set cpu/a=b,c=d  a=d   cpu/a=d,c=d      # update multi-value
+set cpu/a=b      a=c   cpu/a=c          # update single value
+set cpu/a=b,c=   c=d   cpu/a=b,c=d      # update empty key
+set cpu/a=1      a=one cpu/a=one        # expand value size
 
-unset a=b      c     a=b        # unset non-existent key
-unset a=b,c=d  a     c=d        # unset last key
-unset a=b,c=d  c     a=b        # unset first key
-unset a=b,c=   c     a=b        # unset empty key
+unset cpu/a=b      c     cpu/a=b        # unset non-existent key
+unset cpu/a=b,c=d  a     cpu/c=d        # unset last key
+unset cpu/a=b,c=d  c     cpu/a=b        # unset first key
+unset cpu/a=b,c=   c     cpu/a=b        # unset empty key
 
 
-merge a=b     a=b a=b           # identity merge
-merge a=b     c=d a=b,c=d       # append merge
-merge a=b,c=d c=e a=b,c=e       # override merge
+merge cpu/a=b     cpu/a=b cpu/a=b           # identity merge
+merge cpu/a=b     cpu/c=d cpu/a=b,c=d       # append merge
+merge cpu/a=b,c=d cpu/c=e cpu/a=b,c=e       # override merge

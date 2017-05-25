@@ -5,7 +5,7 @@
 
 int main(int argc, char **argv)
 {
-	struct tsdp_qname *a, *b;
+	struct qname *a, *b;
 	char mode;
 	int rc;
 
@@ -14,12 +14,12 @@ int main(int argc, char **argv)
 		return 2;
 	}
 
-	a = strcmp(argv[1], "<nil>") == 0 ? INVALID_QNAME : tsdp_qname_parse(argv[1]);
+	a = strcmp(argv[1], "<nil>") == 0 ? NULL : qname_parse(argv[1]);
 	mode = argv[2][0];
-	b = strcmp(argv[3], "<nil>") == 0 ? INVALID_QNAME : tsdp_qname_parse(argv[3]);
-	rc = tsdp_qname_equal(a,b);
-	tsdp_qname_free(a);
-	tsdp_qname_free(b);
+	b = strcmp(argv[3], "<nil>") == 0 ? NULL : qname_parse(argv[3]);
+	rc = qname_equal(a,b);
+	qname_free(a);
+	qname_free(b);
 
 	switch (mode) {
 	case '~': return (rc ? 0 : 1);

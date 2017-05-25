@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include <string.h>
 #include <errno.h>
+#include <time.h>
+#include <ctype.h>
 
 #define BYTE(x,n) (((unsigned char*)(x))[(n)])
 #define WORD(x,n) ((BYTE((x),(n)) << 8) | BYTE((x),(n)+1))
@@ -692,6 +694,65 @@ s_in_binary(unsigned long i, int size)
 	return binfmt + off + 1;
 }
 
+static const char *
+qtime(uint64_t seconds)
+{
+	time_t ts;
+	static char qtime_buf[64];
+	char *fmt, *p;
+
+	ts = seconds;
+	fmt = ctime(&ts);
+	if (!fmt) return "";
+
+	p = strchr(fmt, '\n');
+	if (p && *p) *p = '\0';
+
+	snprintf(qtime_buf, 64, "[%s]", fmt);
+	return qtime_buf;
+}
+
+static const char *
+qstr(const char *input) {
+	const char *from;
+	char *to;
+	int max, trunc;
+	static const char *hex = "0123456789abcdef";
+	static char qstr_buf[128];
+
+	trunc = 0;
+	max = 127 - 2; /* make room for quotes */
+	if (strlen(input) > 127) {
+		trunc = 1;
+		max -= 3; /* make room for "..." */
+	}
+
+	from = input; to = qstr_buf;
+	*to++ = '"';
+	while (max-- >= 0) {
+		if (!*from) break;
+		if (isprint(*from) || isspace(*from)) {
+			*to++ = *from++;
+		} else {
+			if (max >= 3) {
+				*to++ = '\\';
+				*to++ = 'x';
+				*to++ = hex[(*from & 0xf0) >> 8];
+				*to++ = hex[(*from & 0x0f)];
+				max -= 4;
+			}
+		}
+	}
+	*to++ = '"';
+	if (trunc) {
+		*to++ = '.';
+		*to++ = '.';
+		*to++ = '.';
+	}
+	*to = '\0';
+	return qstr_buf;
+}
+
 void
 tsdp_msg_fdump(FILE *io, struct tsdp_msg *m)
 {
@@ -711,13 +772,38 @@ tsdp_msg_fdump(FILE *io, struct tsdp_msg *m)
 
 	fprintf(io, "frames:  %d\n", m->nframes);
 	for (i = 0, f = m->frames; f; f = f->next, i++) {
+		time_t ts;
 		fprintf(io, "   % 2d) ", i);
 		switch (f->type) {
-		case TSDP_FRAME_UINT:    fprintf(io, "UINT/%d\n",   f->length); break;
-		case TSDP_FRAME_FLOAT:   fprintf(io, "FLOAT/%d\n",  f->length); break;
-		case TSDP_FRAME_STRING:  fprintf(io, "STRING/%d\n", f->length); break;
-		case TSDP_FRAME_TSTAMP:  fprintf(io, "TSTAMP/%d\n", f->length); break;
+		case TSDP_FRAME_UINT:
+			switch (f->length) {
+			case 2:  fprintf(io, "UINT/2   %u\n",  f->payload.uint16); break;
+			case 4:  fprintf(io, "UINT/4   %u\n",  f->payload.uint32); break;
+			case 8:  fprintf(io, "UINT/8   %lu\n", f->payload.uint64); break;
+			default: fprintf(io, "UINT/%d\n", f->length); break;
+			}
+			break;
+
+		case TSDP_FRAME_FLOAT:
+			switch (f->length) {
+			case 4:  fprintf(io, "FLOAT/4  %f\n", f->payload.float32); break;
+			case 8:  fprintf(io, "FLOAT/8  %f\n", f->payload.float64); break;
+			default: fprintf(io, "FLOAT/%d\n", f->length); break;
+			}
+			break;
+
+		case TSDP_FRAME_TSTAMP:
+			switch (f->length) {
+			case 8:  fprintf(io, "TSTAMP/8 %s (%lu)\n", qtime(f->payload.tstamp),
+			                                            f->payload.tstamp); break;
+			default: fprintf(io, "TSTAMP/%d\n", f->length); break;
+			}
+			break;
+
 		case TSDP_FRAME_NIL:     fprintf(io, "NIL/%d\n",    f->length); break;
+		case TSDP_FRAME_STRING:  fprintf(io, "STRING/%d %s\n", f->length,
+		                                     qstr(f->payload.string)); break;
+
 		default: fprintf(io, "\?\?\?(%02x)/%d\n", f->type, f->length);
 		}
 	}

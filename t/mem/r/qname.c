@@ -4,7 +4,7 @@
 
 int main(int argc, char **argv)
 {
-	tsdp_qname_string(tsdp_qname_parse(argv[1]));
+	qname_string(qname_parse(argv[1]));
 	if (malloc(1)) return 0;
 	return 77;
 }

@@ -54,7 +54,7 @@ if ($? == 0) {
 msg_in "[HEARTBEAT] message (0)",
        #------------------------------------------------
        "1 0 00 0000".                 # header
-       "6 008   0011 2233 4455 6677". # TSTAMP/8   time of measurement
+       "6 008   0000 0000 5921 e9e2". # TSTAMP/8   time of measurement
        "8 008   88aa bbcc ddee ff00". # UINT/8     number of messages transmitted
        "",
        #------------------------------------------------
@@ -63,17 +63,17 @@ msg_in "[HEARTBEAT] message (0)",
        "flags:   00 (00000000b)\n".
        "payload: 0000 (00000000 00000000b)\n".
        "frames:  2\n".
-       "    0) TSTAMP/8\n".
-       "    1) UINT/8\n".
+       "    0) TSTAMP/8 [Sun May 21 19:26:26 2017] (1495394786)\n".
+       "    1) UINT/8   9847890023770160896\n".
        "";
 
 msg_in "[SUBMIT] SAMPLE message (1/1)",
        #------------------------------------------------
        "1 1 00 0001".                 # header
        "2 008   (a=b,c=d)".           # STRING/*   qualified name of SAMPLE
-       "6 008   0011 2233 4455 6677". # TSTAMP/8   time of measurement(s)
-       "1 008   88aa bbcc ddee ff00". # FLOAT/8    first measurement
-       "9 008   88aa bbcc ddee ff00". # FLOAT/8    second measurement
+       "6 008   0000 0000 5921 e9e2". # TSTAMP/8   time of measurement(s)
+       "1 008   0011 2233 4455 6677". # FLOAT/8    first measurement
+       "9 008   1100 3322 5544 7766". # FLOAT/8    second measurement
        "",
        #------------------------------------------------
        "version: 1\n".
@@ -82,17 +82,17 @@ msg_in "[SUBMIT] SAMPLE message (1/1)",
        "payload: 0001 (00000000 00000001b)\n".
        "          - SAMPLE (0001)\n".
        "frames:  4\n".
-       "    0) STRING/8\n".
-       "    1) TSTAMP/8\n".
-       "    2) FLOAT/8\n".
-       "    3) FLOAT/8\n".
+       "    0) STRING/8 \"a=b,c=d\"\n".
+       "    1) TSTAMP/8 [Sun May 21 19:26:26 2017] (1495394786)\n".
+       "    2) FLOAT/8  853.601013\n".
+       "    3) FLOAT/8  13501068214272.000000\n".
        "";
 
 msg_in "[SUBMIT] TALLY message (1/2)",
        #------------------------------------------------
        "1 1 00 0002".                 # header
        "2 008   (a=b,c=d)".           # STRING/*   qualified name of TALLY
-       "6 008   0011 2233 4455 6677". # TSTAMP/8   time of measurement
+       "6 008   0000 0000 5921 e9e2". # TSTAMP/8   time of measurement
        "8 008   2222 4444 5555 6666". # UINT/8     increment value
        "",
        #------------------------------------------------
@@ -102,16 +102,16 @@ msg_in "[SUBMIT] TALLY message (1/2)",
        "payload: 0002 (00000000 00000010b)\n".
        "          - TALLY  (0002)\n".
        "frames:  3\n".
-       "    0) STRING/8\n".
-       "    1) TSTAMP/8\n".
-       "    2) UINT/8\n".
+       "    0) STRING/8 \"a=b,c=d\"\n".
+       "    1) TSTAMP/8 [Sun May 21 19:26:26 2017] (1495394786)\n".
+       "    2) UINT/8   2459603406777837158\n".
        "";
 
 msg_in "[SUBMIT] DELTA message (1/4)",
        #------------------------------------------------
        "1 1 00 0004".                 # header
        "2 008   (a=b,c=d)".           # STRING/*   qualified name of DELTA
-       "6 008   0011 2233 4455 6677". # TSTAMP/8   time of measurement
+       "6 008   0000 0000 5921 e9e2". # TSTAMP/8   time of measurement
        "9 008   4141 4242 4343 4444". # FLOAT/8    current value
        "",
        #------------------------------------------------
@@ -121,16 +121,16 @@ msg_in "[SUBMIT] DELTA message (1/4)",
        "payload: 0004 (00000000 00000100b)\n".
        "          - DELTA  (0004)\n".
        "frames:  3\n".
-       "    0) STRING/8\n".
-       "    1) TSTAMP/8\n".
-       "    2) FLOAT/8\n".
+       "    0) STRING/8 \"a=b,c=d\"\n".
+       "    1) TSTAMP/8 [Sun May 21 19:26:26 2017] (1495394786)\n".
+       "    2) FLOAT/8  195.266663\n".
        "";
 
 msg_in "[SUBMIT] STATE message (1/8)",
        #------------------------------------------------
        "1 1 02 0008".                 # header
        "2 008   (a=b,c=d)".           # STRING/*   qualified name of STATE
-       "6 008   0011 2233 4455 6677". # TSTAMP/8   time of measurement
+       "6 008   0000 0000 5921 e9e2". # TSTAMP/8   time of measurement
        "0 004   0123 4567".           # UINT/8     check interval (ms)
        "a 00a   (went down)".         # STRING/*   summary
        "",
@@ -141,17 +141,17 @@ msg_in "[SUBMIT] STATE message (1/8)",
        "payload: 0008 (00000000 00001000b)\n".
        "          - STATE  (0008)\n".
        "frames:  4\n".
-       "    0) STRING/8\n".
-       "    1) TSTAMP/8\n".
-       "    2) UINT/4\n".
-       "    3) STRING/10\n".
+       "    0) STRING/8 \"a=b,c=d\"\n".
+       "    1) TSTAMP/8 [Sun May 21 19:26:26 2017] (1495394786)\n".
+       "    2) UINT/4   19088743\n".
+       "    3) STRING/10 \"went down\"\n".
        "";
 
 msg_in "[SUBMIT] EVENT message (1/16)",
        #------------------------------------------------
        "1 1 00 0010".                 # header
        "2 008   (a=b,c=d)".           # STRING/*   qualified name of EVENT
-       "6 008   0011 2233 4455 6677". # TSTAMP/8   time of occurrence
+       "6 008   0000 0000 5921 e9e2". # TSTAMP/8   time of occurrence
        "a 00a   (went down)".         # STRING/*   event description
        "",
        #------------------------------------------------
@@ -161,9 +161,9 @@ msg_in "[SUBMIT] EVENT message (1/16)",
        "payload: 0010 (00000000 00010000b)\n".
        "          - EVENT  (0010)\n".
        "frames:  3\n".
-       "    0) STRING/8\n".
-       "    1) TSTAMP/8\n".
-       "    2) STRING/10\n".
+       "    0) STRING/8 \"a=b,c=d\"\n".
+       "    1) TSTAMP/8 [Sun May 21 19:26:26 2017] (1495394786)\n".
+       "    2) STRING/10 \"went down\"\n".
        "";
 
 msg_in "[SUBMIT] FACT message (1/32)",
@@ -179,22 +179,22 @@ msg_in "[SUBMIT] FACT message (1/32)",
        "payload: 0020 (00000000 00100000b)\n".
        "          - FACT   (0020)\n".
        "frames:  2\n".
-       "    0) STRING/8\n".
-       "    1) STRING/10\n".
+       "    0) STRING/8 \"a=b,c=d\"\n".
+       "    1) STRING/10 \"host.fqdn\"\n".
        "";
 
 msg_in "[BROADCAST] SAMPLE message (2/1)",
        #------------------------------------------------
        "1 2 00 0001".                 # header
        "2 008   (a=b,c=d)".           # STRING/*   qualified name of SAMPLE
-       "6 008   0011 2233 4455 6677". # TSTAMP/8   start of aggregation window
+       "6 008   0000 0000 5921 e9e2". # TSTAMP/8   start of aggregation window
        "0 004   0123 4567".           # UINT/4     aggregation window length
        "0 002   0012".                # UINT/2     number of measurements summarized
-       "1 008   88aa bbcc ddee ff00". # FLOAT/8    population minimum
-       "1 008   88aa bbcc ddee ff00". # FLOAT/8    population maximum
-       "1 008   88aa bbcc ddee ff00". # FLOAT/8    population mean
-       "1 008   88aa bbcc ddee ff00". # FLOAT/8    population median
-       "9 008   88aa bbcc ddee ff00". # FLOAT/8    population standard deviation
+       "1 008   0011 2233 4455 6677". # FLOAT/8    population minimum
+       "1 008   1100 3322 5544 7766". # FLOAT/8    population maximum
+       "1 008   0011 2233 4455 6677". # FLOAT/8    population mean
+       "1 008   1100 3322 5544 7766". # FLOAT/8    population median
+       "9 008   0011 2233 4455 6677". # FLOAT/8    population standard deviation
        "",
        #------------------------------------------------
        "version: 1\n".
@@ -203,22 +203,22 @@ msg_in "[BROADCAST] SAMPLE message (2/1)",
        "payload: 0001 (00000000 00000001b)\n".
        "          - SAMPLE (0001)\n".
        "frames:  9\n".
-       "    0) STRING/8\n".
-       "    1) TSTAMP/8\n".
-       "    2) UINT/4\n".
-       "    3) UINT/2\n".
-       "    4) FLOAT/8\n".
-       "    5) FLOAT/8\n".
-       "    6) FLOAT/8\n".
-       "    7) FLOAT/8\n".
-       "    8) FLOAT/8\n".
+       "    0) STRING/8 \"a=b,c=d\"\n".
+       "    1) TSTAMP/8 [Sun May 21 19:26:26 2017] (1495394786)\n".
+       "    2) UINT/4   19088743\n".
+       "    3) UINT/2   18\n".
+       "    4) FLOAT/8  853.601013\n".
+       "    5) FLOAT/8  13501068214272.000000\n".
+       "    6) FLOAT/8  853.601013\n".
+       "    7) FLOAT/8  13501068214272.000000\n".
+       "    8) FLOAT/8  853.601013\n".
        "";
 
 msg_in "[BROADCAST] TALLY message (2/2)",
        #------------------------------------------------
        "1 2 00 0002".                 # header
        "2 008   (a=b,c=d)".           # STRING/*   qualified name of TALLY
-       "6 008   0011 2233 4455 6677". # TSTAMP/8   start of aggregation window
+       "6 008   0000 0000 5921 e9e2". # TSTAMP/8   start of aggregation window
        "0 004   0123 4567".           # UINT/4     aggregation window length
        "8 008   0011 2233 4455 6677". # UINT/8     tallied value
        "",
@@ -229,17 +229,17 @@ msg_in "[BROADCAST] TALLY message (2/2)",
        "payload: 0002 (00000000 00000010b)\n".
        "          - TALLY  (0002)\n".
        "frames:  4\n".
-       "    0) STRING/8\n".
-       "    1) TSTAMP/8\n".
-       "    2) UINT/4\n".
-       "    3) UINT/8\n".
+       "    0) STRING/8 \"a=b,c=d\"\n".
+       "    1) TSTAMP/8 [Sun May 21 19:26:26 2017] (1495394786)\n".
+       "    2) UINT/4   19088743\n".
+       "    3) UINT/8   4822678189205111\n".
        "";
 
 msg_in "[BROADCAST] DELTA message (2/4)",
        #------------------------------------------------
        "1 2 00 0004".                 # header
        "2 008   (a=b,c=d)".           # STRING/*   qualified name of DELTA
-       "6 008   0011 2233 4455 6677". # TSTAMP/8   start of aggregation window
+       "6 008   0000 0000 5921 e9e2". # TSTAMP/8   start of aggregation window
        "0 004   0123 4567".           # UINT/4     aggregation window length
        "9 008   0011 2233 4455 6677". # FLOAT/8    calculated rate of change
        "",
@@ -250,10 +250,10 @@ msg_in "[BROADCAST] DELTA message (2/4)",
        "payload: 0004 (00000000 00000100b)\n".
        "          - DELTA  (0004)\n".
        "frames:  4\n".
-       "    0) STRING/8\n".
-       "    1) TSTAMP/8\n".
-       "    2) UINT/4\n".
-       "    3) FLOAT/8\n".
+       "    0) STRING/8 \"a=b,c=d\"\n".
+       "    1) TSTAMP/8 [Sun May 21 19:26:26 2017] (1495394786)\n".
+       "    2) UINT/4   19088743\n".
+       "    3) FLOAT/8  853.601013\n".
        "";
 
 msg_in "[BROADCAST] STATE message (2/8)",
@@ -261,7 +261,7 @@ msg_in "[BROADCAST] STATE message (2/8)",
        "1 2 80 0008".                 # header
        "2 008   (a=b,c=d)".           # STRING/*   qualified name of STATE
        "0 004   4321 1234".           # UINT/4     freshness window (ms)
-       "6 008   0011 2233 4455 6677". # TSTAMP/8   time of check (current state)
+       "6 008   0000 0000 5921 e9e2". # TSTAMP/8   time of check (current state)
        "a 00f   (nothing broken)".    # STRING/*   summary message (current state)
        "",
        #------------------------------------------------
@@ -271,10 +271,10 @@ msg_in "[BROADCAST] STATE message (2/8)",
        "payload: 0008 (00000000 00001000b)\n".
        "          - STATE  (0008)\n".
        "frames:  4\n".
-       "    0) STRING/8\n".
-       "    1) UINT/4\n".
-       "    2) TSTAMP/8\n".
-       "    3) STRING/15\n".
+       "    0) STRING/8 \"a=b,c=d\"\n".
+       "    1) UINT/4   1126240820\n".
+       "    2) TSTAMP/8 [Sun May 21 19:26:26 2017] (1495394786)\n".
+       "    3) STRING/15 \"nothing broken\"\n".
        "";
 
 msg_in "[BROADCAST] STATE transitional message (2/8)",
@@ -282,9 +282,9 @@ msg_in "[BROADCAST] STATE transitional message (2/8)",
        "1 2 c4 0008".                 # header
        "2 008   (a=b,c=d)".           # STRING/*   qualified name of STATE
        "0 004   4321 1234".           # UINT/4     freshness window (ms)
-       "6 008   0011 2233 4455 6677". # TSTAMP/8   time of check (previous state)
+       "6 008   0000 0000 5921 e9e2". # TSTAMP/8   time of check (previous state)
        "2 010   (it recovered...)".   # STRING/*   summary message (previous state)
-       "6 008   0011 2233 4455 6677". # TSTAMP/8   time of check (current state)
+       "6 008   0000 0000 5921 e9e2". # TSTAMP/8   time of check (current state)
        "a 010   (it recovered...)".   # STRING/*   summary message (current state)
        "",
        #------------------------------------------------
@@ -294,19 +294,19 @@ msg_in "[BROADCAST] STATE transitional message (2/8)",
        "payload: 0008 (00000000 00001000b)\n".
        "          - STATE  (0008)\n".
        "frames:  6\n".
-       "    0) STRING/8\n".
-       "    1) UINT/4\n".
-       "    2) TSTAMP/8\n".
-       "    3) STRING/16\n".
-       "    4) TSTAMP/8\n".
-       "    5) STRING/16\n".
+       "    0) STRING/8 \"a=b,c=d\"\n".
+       "    1) UINT/4   1126240820\n".
+       "    2) TSTAMP/8 [Sun May 21 19:26:26 2017] (1495394786)\n".
+       "    3) STRING/16 \"it recovered...\"\n".
+       "    4) TSTAMP/8 [Sun May 21 19:26:26 2017] (1495394786)\n".
+       "    5) STRING/16 \"it recovered...\"\n".
        "";
 
 msg_in "[BROADCAST] EVENT message (2/16)",
        #------------------------------------------------
        "1 2 00 0010".                 # header
        "2 008   (a=b,c=d)".           # STRING/*   qualified name of EVENT
-       "6 008   0011 2233 4455 6677". # TSTAMP/8   time of occurrence
+       "6 008   0000 0000 5921 e9e2". # TSTAMP/8   time of occurrence
        "a 00f   (stuff's broken)".    # STRING/*   event description
        "",
        #------------------------------------------------
@@ -316,9 +316,9 @@ msg_in "[BROADCAST] EVENT message (2/16)",
        "payload: 0010 (00000000 00010000b)\n".
        "          - EVENT  (0010)\n".
        "frames:  3\n".
-       "    0) STRING/8\n".
-       "    1) TSTAMP/8\n".
-       "    2) STRING/15\n".
+       "    0) STRING/8 \"a=b,c=d\"\n".
+       "    1) TSTAMP/8 [Sun May 21 19:26:26 2017] (1495394786)\n".
+       "    2) STRING/15 \"stuff's broken\"\n".
        "";
 
 msg_in "[BROADCAST] FACT message (2/32)",
@@ -334,8 +334,8 @@ msg_in "[BROADCAST] FACT message (2/32)",
        "payload: 0020 (00000000 00100000b)\n".
        "          - FACT   (0020)\n".
        "frames:  2\n".
-       "    0) STRING/8\n".
-       "    1) STRING/15\n".
+       "    0) STRING/8 \"a=b,c=d\"\n".
+       "    1) STRING/15 \"value of fact!\"\n".
        "";
 
 msg_in "[FORGET] message (3)",
@@ -352,7 +352,7 @@ msg_in "[FORGET] message (3)",
        "          - TALLY  (0002)\n".
        "          - DELTA  (0004)\n".
        "frames:  1\n".
-       "    0) STRING/8\n".
+       "    0) STRING/8 \"a=b,c=d\"\n".
        "";
 
 msg_in "[REPLAY] message (4)",
@@ -383,7 +383,7 @@ msg_in "[SUBSCRIBE] message (5)",
        "          - TALLY  (0002)\n".
        "          - DELTA  (0004)\n".
        "frames:  1\n".
-       "    0) STRING/8\n".
+       "    0) STRING/8 \"a=b,c=*\"\n".
        "";
 
 msg_in "[INVALID] short buffer",
