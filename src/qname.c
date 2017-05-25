@@ -356,7 +356,7 @@ qname_dup(struct qname *q)
 
 	if (!q->flat) { /* expanded */
 		dup->flat = NULL;
-		dup->metric = strdup(q->metric);
+		dup->metric = q->metric ? strdup(q->metric) : NULL;
 		for (i = 0; i < q->i; i++) {
 			dup->pairs[i].key   = strdup(q->pairs[i].key);
 			dup->pairs[i].value = q->pairs[i].value;
