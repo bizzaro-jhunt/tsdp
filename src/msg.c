@@ -708,7 +708,7 @@ qtime(uint64_t seconds)
 }
 
 static const char *
-qstr(const char *input) {
+qstr(const char *input, size_t len) {
 	const char *from;
 	char *to;
 	int max, trunc;
@@ -717,14 +717,14 @@ qstr(const char *input) {
 
 	trunc = 0;
 	max = 127 - 2; /* make room for quotes */
-	if (strlen(input) > 127) {
+	if (len > 127) {
 		trunc = 1;
 		max -= 3; /* make room for "..." */
 	}
 
 	from = input; to = qstr_buf;
 	*to++ = '"';
-	while (max-- >= 0) {
+	while (max > 0 && from < input + len) {
 		if (!*from) break;
 		if (isprint(*from) || isspace(*from)) {
 			*to++ = *from++;
@@ -797,7 +797,7 @@ tsdp_msg_fdump(FILE *io, struct tsdp_msg *m)
 
 		case TSDP_FRAME_NIL:     fprintf(io, "NIL/%d\n",    f->length); break;
 		case TSDP_FRAME_STRING:  fprintf(io, "STRING/%d %s\n", f->length,
-		                                     qstr(f->payload.string)); break;
+		                                     qstr(f->payload.string, f->length)); break;
 
 		default: fprintf(io, "\?\?\?(%02x)/%d\n", f->type, f->length);
 		}
