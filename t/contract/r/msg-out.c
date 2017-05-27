@@ -56,6 +56,9 @@ void dump(struct tsdp_msg *m)
 		if (((i+1) % 16) == 0) printf("\n");
 	}
 	printf("\n\n");
+	printf("+++\n");
+	tsdp_msg_fdump(stdout, m2);
+	printf("\n\n");
 
 	free(buf);
 	tsdp_msg_free(m2);
@@ -71,7 +74,8 @@ int main(int argc, char **argv)
 	uint16_t u16;
 	uint32_t u32;
 	uint64_t u64;
-	float f32, f64;
+	float f32;
+	double f64;
 
 	m = tsdp_msg_new(
 			TSDP_PROTOCOL_V1,

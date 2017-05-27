@@ -147,7 +147,7 @@ tsdp_msg_extend(struct tsdp_msg *m, int type, const void *v, size_t len)
 			if (len == 4) {           /* FLOAT/32 */
 				f->payload.float32 = *(float*)v;
 			} else if (len == 8) {    /* FLOAT/64 */
-				f->payload.float64 = *(float*)v;
+				f->payload.float64 = *(double*)v;
 			} else {
 				free(f);
 				return -1;
@@ -344,7 +344,7 @@ tsdp_msg_unpack(const void *buf, size_t n, size_t *left)
 				break;
 			case 8:
 				u64 = n2h64(f->data);
-				f->payload.float64 = *((float *)&u64);
+				f->payload.float64 = *((double *)&u64);
 				break;
 			}
 			break;
@@ -527,18 +527,15 @@ tsdp_msg_valid(struct tsdp_msg *m)
 		switch (m->payload) {
 		case TSDP_PAYLOAD_SAMPLE:
 			errno = TSDP_E_INVALID_ARITY;
-			requires_exact_frame_count(9);
+			requires_min_frame_count(4);
 
 			errno = TSDP_E_INVALID_FRAME;
 			requires_frame(0, TSDP_FRAME_STRING, 0);
 			requires_frame(1, TSDP_FRAME_TSTAMP, 8);
 			requires_frame(2, TSDP_FRAME_UINT,   4);
-			requires_frame(3, TSDP_FRAME_UINT,   2);
-			requires_frame(4, TSDP_FRAME_FLOAT,  8);
-			requires_frame(5, TSDP_FRAME_FLOAT,  8);
-			requires_frame(6, TSDP_FRAME_FLOAT,  8);
-			requires_frame(7, TSDP_FRAME_FLOAT,  8);
-			requires_frame(8, TSDP_FRAME_FLOAT,  8);
+			for (i = 3; i < m->nframes; i++) {
+				requires_frame(i, TSDP_FRAME_FLOAT, 8); /* measurement(s)   */
+			}
 			return 1;
 
 		case TSDP_PAYLOAD_TALLY:
@@ -786,8 +783,8 @@ tsdp_msg_fdump(FILE *io, struct tsdp_msg *m)
 
 		case TSDP_FRAME_FLOAT:
 			switch (f->length) {
-			case 4:  fprintf(io, "FLOAT/4  %f\n", f->payload.float32); break;
-			case 8:  fprintf(io, "FLOAT/8  %f\n", f->payload.float64); break;
+			case 4:  fprintf(io, "FLOAT/4  %e\n", f->payload.float32); break;
+			case 8:  fprintf(io, "FLOAT/8  %e\n", f->payload.float64); break;
 			default: fprintf(io, "FLOAT/%d\n", f->length); break;
 			}
 			break;
@@ -916,7 +913,7 @@ tsdp_msg_frame_as_uint8(uint64_t *dst, struct tsdp_msg *m, int n)
 }
 
 int
-tsdp_msg_frame_as_float8(float *dst, struct tsdp_msg *m, int n)
+tsdp_msg_frame_as_float8(double *dst, struct tsdp_msg *m, int n)
 {
 	struct tsdp_frame *f;
 

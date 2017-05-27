@@ -85,7 +85,7 @@ struct tsdp_frame {
 		uint32_t  uint32;      /* TSDP_FRAME_UINT/32             */
 		uint64_t  uint64;      /* TSDP_FRAME_UINT/64             */
 		float     float32;     /* TSDP_FRAME_FLOAT/32            */
-		float     float64;     /* TSDP_FRAME_FLOAT/64            */
+		double    float64;     /* TSDP_FRAME_FLOAT/64            */
 		char     *string;      /* TSDP_FRAME_STRING              */
 		uint64_t  tstamp;      /* TSDP_FRAME_TSTAMP/64           */
 		/* nothing */          /* TSDP_FRAME_NIL                 */
@@ -229,7 +229,7 @@ int
 tsdp_msg_frame_as_uint8(uint64_t *dst, struct tsdp_msg *m, int n);
 
 int
-tsdp_msg_frame_as_float8(float *dst, struct tsdp_msg *m, int n);
+tsdp_msg_frame_as_float8(double *dst, struct tsdp_msg *m, int n);
 
 unsigned int
 tsdp_frame_type(struct tsdp_frame *f);

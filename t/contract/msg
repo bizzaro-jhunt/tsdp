@@ -72,8 +72,8 @@ msg_in "[SUBMIT] SAMPLE message (1/1)",
        "1 1 00 0001".                 # header
        "2 008   (a=b,c=d)".           # STRING/*   qualified name of SAMPLE
        "6 008   0000 0000 5921 e9e2". # TSTAMP/8   time of measurement(s)
-       "1 008   0011 2233 4455 6677". # FLOAT/8    first measurement
-       "9 008   1100 3322 5544 7766". # FLOAT/8    second measurement
+       "1 008   4093 4a45 84f4 c6e7". # FLOAT/8    first measurement
+       "9 008   42a8 8eec c000 0000". # FLOAT/8    second measurement
        "",
        #------------------------------------------------
        "version: 1\n".
@@ -84,8 +84,8 @@ msg_in "[SUBMIT] SAMPLE message (1/1)",
        "frames:  4\n".
        "    0) STRING/8 \"a=b,c=d\"\n".
        "    1) TSTAMP/8 [Sun May 21 19:26:26 2017] (1495394786)\n".
-       "    2) FLOAT/8  853.601013\n".
-       "    3) FLOAT/8  13501068214272.000000\n".
+       "    2) FLOAT/8  1.234568e+03\n".
+       "    3) FLOAT/8  1.350107e+13\n".
        "";
 
 msg_in "[SUBMIT] TALLY message (1/2)",
@@ -112,7 +112,7 @@ msg_in "[SUBMIT] DELTA message (1/4)",
        "1 1 00 0004".                 # header
        "2 008   (a=b,c=d)".           # STRING/*   qualified name of DELTA
        "6 008   0000 0000 5921 e9e2". # TSTAMP/8   time of measurement
-       "9 008   4141 4242 4343 4444". # FLOAT/8    current value
+       "9 008   4093 4a45 84f4 c6e7". # FLOAT/8    current value
        "",
        #------------------------------------------------
        "version: 1\n".
@@ -123,7 +123,7 @@ msg_in "[SUBMIT] DELTA message (1/4)",
        "frames:  3\n".
        "    0) STRING/8 \"a=b,c=d\"\n".
        "    1) TSTAMP/8 [Sun May 21 19:26:26 2017] (1495394786)\n".
-       "    2) FLOAT/8  195.266663\n".
+       "    2) FLOAT/8  1.234568e+03\n".
        "";
 
 msg_in "[SUBMIT] STATE message (1/8)",
@@ -189,12 +189,9 @@ msg_in "[BROADCAST] SAMPLE message (2/1)",
        "2 008   (a=b,c=d)".           # STRING/*   qualified name of SAMPLE
        "6 008   0000 0000 5921 e9e2". # TSTAMP/8   start of aggregation window
        "0 004   0123 4567".           # UINT/4     aggregation window length
-       "0 002   0012".                # UINT/2     number of measurements summarized
-       "1 008   0011 2233 4455 6677". # FLOAT/8    population minimum
-       "1 008   1100 3322 5544 7766". # FLOAT/8    population maximum
-       "1 008   0011 2233 4455 6677". # FLOAT/8    population mean
-       "1 008   1100 3322 5544 7766". # FLOAT/8    population median
-       "9 008   0011 2233 4455 6677". # FLOAT/8    population standard deviation
+       "1 008   408a acce dfe7 5bc4". # FLOAT/8    measurement
+       "1 008   42a8 8eec c000 0000". # FLOAT/8    measurement
+       "9 008   408a acce dfe7 5bc4". # FLOAT/8    measurement
        "",
        #------------------------------------------------
        "version: 1\n".
@@ -202,16 +199,13 @@ msg_in "[BROADCAST] SAMPLE message (2/1)",
        "flags:   00 (00000000b)\n".
        "payload: 0001 (00000000 00000001b)\n".
        "          - SAMPLE (0001)\n".
-       "frames:  9\n".
+       "frames:  6\n".
        "    0) STRING/8 \"a=b,c=d\"\n".
        "    1) TSTAMP/8 [Sun May 21 19:26:26 2017] (1495394786)\n".
        "    2) UINT/4   19088743\n".
-       "    3) UINT/2   18\n".
-       "    4) FLOAT/8  853.601013\n".
-       "    5) FLOAT/8  13501068214272.000000\n".
-       "    6) FLOAT/8  853.601013\n".
-       "    7) FLOAT/8  13501068214272.000000\n".
-       "    8) FLOAT/8  853.601013\n".
+       "    3) FLOAT/8  8.536010e+02\n".
+       "    4) FLOAT/8  1.350107e+13\n".
+       "    5) FLOAT/8  8.536010e+02\n".
        "";
 
 msg_in "[BROADCAST] TALLY message (2/2)",
@@ -241,7 +235,7 @@ msg_in "[BROADCAST] DELTA message (2/4)",
        "2 008   (a=b,c=d)".           # STRING/*   qualified name of DELTA
        "6 008   0000 0000 5921 e9e2". # TSTAMP/8   start of aggregation window
        "0 004   0123 4567".           # UINT/4     aggregation window length
-       "9 008   0011 2233 4455 6677". # FLOAT/8    calculated rate of change
+       "9 008   408a acce dfe7 5bc4". # FLOAT/8    calculated rate of change
        "",
        #------------------------------------------------
        "version: 1\n".
@@ -253,7 +247,7 @@ msg_in "[BROADCAST] DELTA message (2/4)",
        "    0) STRING/8 \"a=b,c=d\"\n".
        "    1) TSTAMP/8 [Sun May 21 19:26:26 2017] (1495394786)\n".
        "    2) UINT/4   19088743\n".
-       "    3) FLOAT/8  853.601013\n".
+       "    3) FLOAT/8  8.536010e+02\n".
        "";
 
 msg_in "[BROADCAST] STATE message (2/8)",
@@ -399,15 +393,57 @@ my $want = <<EOF;
 ---
  10 55 00 03 70 00 a0 04 74 65 73 74
 
++++
+version: 1
+opcode:  0 [HEARTBEAT]
+flags:   55 (01010101b)
+payload: 0003 (00000000 00000011b)
+          - SAMPLE (0001)
+          - TALLY  (0002)
+frames:  2
+    0) NIL/0
+    1) STRING/4 "test"
+
+
 ---
  15 14 00 00 00 02 12 34 00 04 de ad be ef 00 08
  de ca fb ad ab ad 1d ea 10 04 3f 9e 04 19 10 08
- 00 00 00 00 48 df 0a a4 20 00 20 04 68 69 79 61
+ 41 1b e1 54 7e 6b 74 dd 20 00 20 04 68 69 79 61
  20 0c 68 65 6c 6c 6f 2c 20 77 6f 72 6c 64 60 08
  11 22 33 44 55 66 77 88 70 00 f0 00
 
++++
+version: 1
+opcode:  5 [SUBSCRIBE]
+flags:   14 (00010100b)
+payload: 0000 (00000000 00000000b)
+frames:  11
+    0) UINT/2   4660
+    1) UINT/4   3735928559
+    2) UINT/8   16053920545043717610
+    3) FLOAT/4  1.234500e+00
+    4) FLOAT/8  4.567891e+05
+    5) STRING/0 ""
+    6) STRING/4 "hiya"
+    7) STRING/12 "hello, world"
+    8) TSTAMP/8  (1234605616436508552)
+    9) NIL/0
+    10) NIL/0
+
+
 ---
  13 42 00 18 f0 00
+
++++
+version: 1
+opcode:  3 [FORGET]
+flags:   42 (01000010b)
+payload: 0018 (00000000 00011000b)
+          - STATE  (0008)
+          - EVENT  (0010)
+frames:  1
+    0) NIL/0
+
 
 EOF
 if ($exit == 0) {
