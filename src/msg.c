@@ -179,7 +179,6 @@ tsdp_msg_extend(struct tsdp_msg *m, int type, const void *v, size_t len)
 	f->next = NULL;
 	if (!m->last) {
 		m->frames = m->last = f;
-
 	} else {
 		m->last->next = f;
 		m->last = f;
@@ -360,11 +359,10 @@ tsdp_msg_unpack(const void *buf, size_t n, size_t *left)
 		}
 
 		m->nframes++;
-		if (!m->frames) {
-			m->frames = f;
-			m->last   = f;
+		f->next = NULL;
+		if (!m->last) {
+			m->frames = m->last = f;
 		} else {
-			assert(m->last);
 			m->last->next = f;
 			m->last       = f;
 		}
