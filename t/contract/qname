@@ -159,9 +159,9 @@ string cpu/set       >> cpu/set        # omitted value eof
 string cpu/a=,b      >> cpu/a,b        # omitted value=
 string cpu/a,b       >> cpu/a,b        # omitted value,
 
-equiv <nil>       ! <nil>          # nil/nil inequality
+equiv <nil>       ! <nil>              # nil/nil inequality
 equiv <nil>       ! cpu/a=b            # nil/!nil inequality
-equiv cpu/a=b     ! <nil>          # !nil/nil inequality
+equiv cpu/a=b     ! <nil>              # !nil/nil inequality
 equiv cpu/a=b     ~ cpu/a=b            # base case
 equiv cpu/a=b,c=d ~ cpu/a=b,c=d        # multiple keys
 equiv cpu/a=b,c=  ~ cpu/a=b,c=         # missing value (symmetric)
@@ -171,10 +171,11 @@ equiv cpu/a=b     ! cpu/a=             # missing value
 equiv cpu/a=b,c=d ! cpu/a=b            # arity mismatch
 equiv cpu/a=b,*   ! cpu/a=b            # wildcard mismatch
 equiv cpu/a=b,*   ~ cpu/a=b,*          # wildcard equality
+equiv cpu/a=b     ! mem/a=b            # metric name equality
 
-match <nil>       ! <nil>          # nil/nil mismatch
+match <nil>       ! <nil>              # nil/nil mismatch
 match <nil>       ! cpu/a=b            # nil/!nil mismatch
-match cpu/a=b     ! <nil>          # !nil/nil mismatch
+match cpu/a=b     ! <nil>              # !nil/nil mismatch
 match cpu/a=b     ~ cpu/a=b            # literal match
 match cpu/a=b     ~ cpu/a=*            # partial match
 match cpu/a=b,c=d ~ cpu/a=*,c=d        # interior partial match
