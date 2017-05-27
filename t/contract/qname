@@ -188,6 +188,8 @@ match cpu/a=b     ! cpu/c=d            # key mismatch
 match cpu/a=b     ! cpu/c=d,*          # pattern constraint
 match cpu/a=b     ~ cpu/a=b,*          # superfluous wildcard
 match cpu/a=b,c=d ! cpu/a=b            # arity mismatch
+match cpu/a=b     ! mem/a=*            # metric name mismatch
+match cpu/a=b     ! mem/a=b            # metric name mismatch
 
 max 1 ok
 max 64 ok

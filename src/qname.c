@@ -395,10 +395,14 @@ qname_free(struct qname *q)
 	if (!q) return;
 
 	if (q->flat) free(q->flat);
-	else for (i = 0; i < q->i; i++) {
-		qfree(q->pairs[i].key);
-		qfree(q->pairs[i].value);
+	else {
+		free(q->metric);
+		for (i = 0; i < q->i; i++) {
+			qfree(q->pairs[i].key);
+			qfree(q->pairs[i].value);
+		}
 	}
+	free(q);
 }
 
 
@@ -476,6 +480,11 @@ qname_equal(struct qname *a, struct qname *b)
 	/* equivalent names have the same number of key=value pairs */
 	if (a->i != b->i) return 0;
 
+	/* metric names must be present */
+	if (!a->metric || !b->metric) return 0;
+	/* ... and they must match */
+	if (strcmp(a->metric, b->metric) != 0) return 0;
+
 	/* pairs should be lexically ordered, so we can compare
 	   them sequentially for key- and value-equality */
 	for (i = 0; i < a->i; i++) {
@@ -507,6 +516,12 @@ qname_match(struct qname *qn, struct qname *pattern)
 
 	/* the invalid qualified name never matches to anything */
 	if (!qn || !pattern) return 0;
+
+	/* metric names must be present */
+	if (!qn->metric || !pattern->metric) return 0;
+	/* ... and must be equivalent or wildcarded */
+	if (pattern->metric != __QNAME_WILDCARD
+	 && strcmp(qn->metric, pattern->metric) != 0) return 0;
 
 	/* pattern constraints must be met first */
 	for (i = 0; i < pattern->i; i++) {
